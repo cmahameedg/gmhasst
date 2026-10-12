@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}DSC and registrations{% endblock %}
+{% block content %}
+<h1>DSC and registration register</h1>
+<form class="panel filters" method="get" style="grid-template-columns:2fr 1fr 1fr auto">
+  <div><label for="client">Client</label><select id="client" name="client"><option value="">All</option>
+    {% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if args.get('client') == c.id|string }}>{{ c.code }} · {{ c.name }}</option>{% endfor %}</select></div>
+  <div><label for="within">Due / expiring within</label><select id="within" name="within"><option value="">Any time</option>
+    {% for d in [30, 60, 90] %}<option value="{{ d }}" {{ 'selected' if args.get('within') == d|string }}>{{ d }} days</option>{% endfor %}</select></div>
+  <div><label for="show">Include</label><select id="show" name="show"><option value="">Current only</option><option value="all" {{ 'selected' if args.get('show') == 'all' }}>Renewed / done too</option></select></div>
+  <div class="actions"><button>Filter</button><a href="{{ url_for('registers.index') }}">Clear</a></div>
+</form>
+
+<div class="panel">
+  <div class="actions" style="justify-content:space-between"><h2 style="margin:0">Digital signature certificates</h2>
+    {% if editable %}<a class="button secondary" href="{{ url_for('registers.dsc_new', client_id=args.get('client', '')) }}">Add DSC</a>{% endif %}</div>
+  <table style="margin-top:10px">
+    <thead><tr><th>Expiry</th><th>Holder</th><th>Client</th><th>Class</th><th>Issuer</th><th>Held by</th><th></th></tr></thead>
+    <tbody>
+    {% for d in dscs %}
+      {% set left = days_left(d.expiry_date) %}
+      <tr class="dsc-row" data-dsc="{{ d.id }}" data-flag="{{ 'expired' if left < 0 else 'expiring' if left <= DSC_WARNING_DAYS else 'ok' }}">
+        <td class="small">{{ d.expiry_date.strftime('%d-%m-%Y') }}<br>
+          {% if not d.active %}<span class="chip nil">Renewed / inactive</span>
+          {% elif left < 0 %}<span class="chip red">Expired {{ -left }} day(s) ago</span>
+          {% elif left <= DSC_WARNING_DAYS %}<span class="chip red">Expires in {{ left }} day(s)</span>
+          {% else %}<span class="muted">{{ left }} days</span>{% endif %}</td>
+        <td>{{ d.holder_name }}{% if d.notes %}<div class="small muted">{{ d.notes }}</div>{% endif %}</td>
+        <td><a href="{{ url_for('clients.profile', client_id=d.client.id, tab='notices') }}">{{ d.client.name }}</a></td>
+        <td class="small">{{ d.dsc_class }}</td><td class="small">{{ d.issuer }}</td><td>{{ d.held_by }}</td>
+        <td class="small">{% if d.client_id in editable %}<a href="{{ url_for('registers.dsc_edit', dsc_id=d.id) }}">Edit</a>{% if d.active %} · <a href="{{ url_for('registers.dsc_new', renew=d.id) }}">Renewed…</a>{% endif %}{% endif %}</td>
+      </tr>
+    {% else %}<tr><td colspan="7" class="muted">No DSCs recorded.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="panel">
+  <div class="actions" style="justify-content:space-between"><h2 style="margin:0">Registration deadlines</h2>
+    {% if editable %}<a class="button secondary" href="{{ url_for('registers.deadline_new', client_id=args.get('client', '')) }}">Add deadline</a>{% endif %}</div>
+  <table style="margin-top:10px">
+    <thead><tr><th>Due</th><th>What</th><th>Client</th><th>Notes</th><th>Done</th></tr></thead>
+    <tbody>
+    {% for r in deadlines %}
+      {% set left = days_left(r.due_date) %}
+      <tr>
+        <td class="small" style="{{ 'color:var(--danger);font-weight:600' if not r.done_on and left < 0 }}">{{ r.due_date.strftime('%d-%m-%Y') }}{% if not r.done_on %}<br>{{ 'overdue' if left < 0 else left ~ ' day(s)' }}{% endif %}</td>
+        <td>{{ DEADLINE_KINDS[r.kind] }}{% if r.basis_date %}<div class="small muted">Registration granted {{ r.basis_date.strftime('%d-%m-%Y') }}; also before the first GSTR-1 / IFF if that is earlier</div>{% endif %}</td>
+        <td><a href="{{ url_for('clients.profile', client_id=r.client.id, tab='notices') }}">{{ r.client.name }}</a></td>
+        <td class="small">{{ r.notes or '' }}</td>
+        <td class="small">{% if r.done_on %}{{ r.done_on.strftime('%d-%m-%Y') }}{% if r.reference %} · {{ r.reference }}{% endif %}
+          {% elif r.client_id in editable %}
+          <form method="post" action="{{ url_for('registers.deadline_done', deadline_id=r.id) }}" class="actions">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="date" name="done_on" value="{{ today().isoformat() }}" style="width:auto">
+            <input type="text" name="reference" placeholder="Reference" style="width:120px">
+            <button class="secondary">Done</button>
+          </form>{% endif %}</td>
+      </tr>
+    {% else %}<tr><td colspan="5" class="muted">No deadlines.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

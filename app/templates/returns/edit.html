@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Add return type' if creating else 'Edit ' ~ rt.name }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('returns.index') }}">← Return master</a></p>
+<h1>{{ 'Add return type' if creating else rt.name }}</h1>
+<form method="post" class="panel">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="grid">
+    <div class="field"><label for="name" class="req">Name</label><input id="name" type="text" name="name" value="{{ rt.name or '' }}" required></div>
+    <div class="field"><label for="old_name">Form name (Income-tax Act, 1961)</label><input id="old_name" type="text" name="old_name" value="{{ rt.old_name or '' }}"></div>
+    <div class="field"><label for="new_name">Form name (Income-tax Act, 2025)</label><input id="new_name" type="text" name="new_name" value="{{ rt.new_name or '' }}"></div>
+    <div class="field"><label for="category">Category</label><select id="category" name="category">{% for cat in categories %}<option {{ 'selected' if rt.category == cat }}>{{ cat }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="frequency">Frequency</label><select id="frequency" name="frequency" {{ 'disabled' if has_filings }}>{% for k, label in frequencies.items() %}<option value="{{ k }}" {{ 'selected' if rt.frequency == k }}>{{ label }}</option>{% endfor %}</select>
+      {% if has_filings %}<input type="hidden" name="frequency" value="{{ rt.frequency }}"><div class="small muted">Locked: filings exist.</div>{% endif %}</div>
+    <div class="field"><label for="due_basis">Due date based on</label><select id="due_basis" name="due_basis">
+      <option value="period" {{ 'selected' if rt.due_basis != 'event' }}>End of the period</option>
+      <option value="event" {{ 'selected' if rt.due_basis == 'event' }}>An event (e.g. AGM date)</option></select></div>
+  </div>
+  <div class="grid" id="period-rule">
+    <div class="field"><label for="due_day">Due day of month (31 = last day)</label><input id="due_day" type="text" name="due_day" value="{{ rt.due_day if rt.due_day is not none else '' }}" inputmode="numeric"></div>
+    <div class="field"><label for="due_month_offset">Months after the period's last month</label><input id="due_month_offset" type="text" name="due_month_offset" value="{{ rt.due_month_offset if rt.due_month_offset is not none else '' }}" inputmode="numeric">
+      <div class="small muted">0 = same month (advance tax), 1 = next month (GSTR-1)</div></div>
+  </div>
+  <div class="grid" id="event-rule">
+    <div class="field"><label for="event_label">Event name</label><input id="event_label" type="text" name="event_label" value="{{ rt.event_label or 'AGM date' }}"></div>
+    <div class="field"><label for="event_days">Days after event</label><input id="event_days" type="text" name="event_days" value="{{ rt.event_days if rt.event_days is not none else '' }}" inputmode="numeric"></div>
+  </div>
+  <div class="field" id="overrides"><label>Standing exceptions (e.g. TDS for March due 30 April)</label>
+    <table><thead><tr><th>Period</th><th>Day</th><th>Months after</th></tr></thead><tbody>
+    {% set rows = rt.overrides|list %}
+    {% for i in range(rows|length + 2) %}{% set ov = rows[i] if i < rows|length else none %}
+      <tr>
+        <td><select name="ov_code" class="ov-code" data-value="{{ ov.period_code if ov else '' }}"></select></td>
+        <td><input type="text" name="ov_day" value="{{ ov.due_day if ov else '' }}" inputmode="numeric"></td>
+        <td><input type="text" name="ov_offset" value="{{ ov.due_month_offset if ov else '' }}" inputmode="numeric"></td>
+      </tr>
+    {% endfor %}
+    </tbody></table>
+  </div>
+  <div class="grid">
+    <div class="field"><label for="applies_to" class="req">Applies to</label><input id="applies_to" type="text" name="applies_to" value="{{ rt.applies_to or '' }}">
+      <div class="small muted">Comma-separated: GST:Monthly, GST:QRMP, GST:Composition, TAN, IT:Non-audit, IT:Audit, COMPANY, LLP, DIN</div></div>
+    <div class="field"><label for="portal_url">Portal link (no passwords)</label><input id="portal_url" type="text" name="portal_url" value="{{ rt.portal_url or '' }}"></div>
+    <div class="field"><label for="sort_order">Board column order</label><input id="sort_order" type="text" name="sort_order" value="{{ rt.sort_order or 100 }}"></div>
+  </div>
+  <div class="checks" style="margin-bottom:12px">
+    <label><input type="checkbox" name="default_on" value="1" {{ 'checked' if rt.default_on }}> Ticked by default on new registrations</label>
+    <label><input type="checkbox" name="requires_everify" value="1" {{ 'checked' if rt.requires_everify }}> Closure needs e-verification</label>
+    <label><input type="checkbox" name="active" value="1" {{ 'checked' if rt.active }}> Active</label>
+  </div>
+  <div class="field"><label for="notes">Notes</label><textarea id="notes" name="notes">{{ rt.notes or '' }}</textarea></div>
+  <button>Save</button>
+  {% if not creating %}<span class="small muted">Saving recalculates the due date of every open {{ rt.name }} filing.</span>{% endif %}
+</form>
+
+{% if not creating and rt.due_basis == 'period' %}
+<div class="panel">
+  <h2>Extensions for a single period</h2>
+  <table><thead><tr><th>Period ending</th><th>Extended due date</th><th>Note</th><th></th></tr></thead><tbody>
+  {% for e in rt.extensions %}
+    <tr><td>{{ e.period_end.strftime('%b %Y') }}</td><td>{{ e.due_date.strftime('%d-%m-%Y') }}</td><td class="small">{{ e.note or '' }}</td>
+      <td><form method="post" action="{{ url_for('returns.delete_extension', rt_id=rt.id, ext_id=e.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="link">Remove</button></form></td></tr>
+  {% else %}<tr><td colspan="4" class="muted small">None.</td></tr>{% endfor %}
+  </tbody></table>
+  <form method="post" action="{{ url_for('returns.add_extension', rt_id=rt.id) }}" class="actions" style="margin-top:10px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label style="margin:0">Period ending in</label><input type="month" name="period_month" style="width:auto" required>
+    <label style="margin:0">new due date</label><input type="date" name="due_date" style="width:auto" required>
+    <input type="text" name="note" placeholder="Notification no." style="max-width:220px">
+    <button class="secondary">Add extension</button>
+  </form>
+</div>
+{% endif %}
+<script>
+(function () {
+  var codes = {{ override_codes|tojson }}, freq = document.getElementById('frequency'), basis = document.getElementById('due_basis');
+  function sync() {
+    var event = basis.value === 'event';
+    document.getElementById('period-rule').style.display = event ? 'none' : '';
+    document.getElementById('overrides').style.display = event ? 'none' : '';
+    document.getElementById('event-rule').style.display = event ? '' : 'none';
+    document.querySelectorAll('.ov-code').forEach(function (sel) {
+      var current = sel.value || sel.dataset.value;
+      sel.innerHTML = '<option value="">—</option>' + codes[freq.value].map(function (c) {
+        return '<option value="' + c[0] + '"' + (c[0] === current ? ' selected' : '') + '>' + c[1] + '</option>';
+      }).join('');
+    });
+  }
+  freq.addEventListener('change', sync); basis.addEventListener('change', sync); sync();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Return master{% endblock %}
+{% block content %}
+<div class="actions" style="justify-content:space-between;margin-bottom:12px">
+  <h1 style="margin:0">Return master</h1>
+  {% if current_user.role == 'partner' %}
+  <div class="actions">
+    <form method="post" action="{{ url_for('board.registrations_from_master') }}" onsubmit="return confirm('Create registrations for every active client from their GSTINs, TAN and services? Existing registrations are kept.')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="secondary">Set up registrations from client master</button>
+    </form>
+    <a class="button" href="{{ url_for('returns.new') }}">Add return type</a>
+  </div>
+  {% endif %}
+</div>
+<div class="flash" style="background:var(--warn-bg)">Due dates change by notification. Check each row against the current notification before go-live, and add an extension below a row whenever a date is extended. Changing a row updates the due date on every open filing of that type.</div>
+<form class="panel actions" method="get">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search by name, old form name or new form name" style="max-width:420px">
+  <button>Search</button>{% if q %}<a href="{{ url_for('returns.index') }}">Clear</a>{% endif %}
+</form>
+<table>
+  <thead><tr><th>Return</th><th>Category</th><th>Frequency</th><th>Due date</th><th>Applies to</th><th></th></tr></thead>
+  <tbody>
+  {% for rt in return_types %}
+    <tr class="{{ 'muted' if not rt.active }}">
+      <td><strong>{{ rt.name }}</strong>{% if not rt.active %} <span class="badge Closed">inactive</span>{% endif %}
+        {% if rt.old_name or rt.new_name %}<div class="small muted">{% if rt.old_name %}1961 Act: {{ rt.old_name }}{% endif %}{% if rt.new_name %}{{ ' · ' if rt.old_name }}2025 Act: {{ rt.new_name }}{% endif %}</div>{% endif %}
+        {% if rt.notes %}<div class="small muted">{{ rt.notes }}</div>{% endif %}</td>
+      <td>{{ rt.category }}</td>
+      <td class="small">{{ frequencies[rt.frequency] }}</td>
+      <td class="small">{{ describe(rt) }}{% for e in rt.extensions[:3] %}<div style="color:var(--accent)">Extended: period to {{ e.period_end.strftime('%b %Y') }} → {{ e.due_date.strftime('%d-%m-%Y') }}</div>{% endfor %}</td>
+      <td class="small">{{ rt.applies_to }}{% if not rt.default_on %} <span class="muted">(optional)</span>{% endif %}</td>
+      <td>{% if current_user.role == 'partner' %}<a href="{{ url_for('returns.edit', rt_id=rt.id) }}">Edit</a>{% endif %}</td>
+    </tr>
+  {% else %}<tr><td colspan="6" class="muted">No return types match.</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,33 @@
+<!doctype html>
+<html><body style="margin:0;padding:0;background:#f6f7f9;font-family:Segoe UI,Roboto,Arial,sans-serif;color:#1d2330">
+<div style="max-width:680px;margin:0 auto;padding:20px">
+  <h1 style="font-size:20px;margin:0 0 4px">{{ 'Firm summary' if firm else 'Good morning ' ~ user.name }}</h1>
+  <div style="color:#5d6677;font-size:13px;margin-bottom:16px">{{ day.strftime('%A %d %B %Y') }}</div>
+  {% if firm %}
+  <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #dde1e8;margin-bottom:16px;font-size:14px">
+    <tr><td style="padding:10px"><strong style="font-size:20px">{{ firm_totals.open }}</strong><br><span style="color:#5d6677;font-size:12px">open</span></td>
+      <td style="padding:10px"><strong style="font-size:20px;color:#b42318">{{ firm_totals.overdue }}</strong><br><span style="color:#5d6677;font-size:12px">overdue</span></td>
+      <td style="padding:10px"><strong style="font-size:20px">{{ firm_totals.on_time if firm_totals.on_time is not none else '—' }}{% if firm_totals.on_time is not none %}%{% endif %}</strong><br><span style="color:#5d6677;font-size:12px">on time, last {{ window }} days</span></td></tr>
+  </table>
+  <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #dde1e8;margin-bottom:16px;font-size:13px">
+    <tr style="background:#fafbfc;color:#5d6677;text-align:left"><th style="padding:6px 10px">Staff</th><th style="padding:6px 10px">Open</th><th style="padding:6px 10px">Overdue</th><th style="padding:6px 10px">On time</th></tr>
+    {% for row in team %}<tr><td style="padding:6px 10px;border-top:1px solid #dde1e8">{{ row.user.name }}</td><td style="padding:6px 10px;border-top:1px solid #dde1e8">{{ row.open }}</td>
+      <td style="padding:6px 10px;border-top:1px solid #dde1e8;{{ 'color:#b42318;font-weight:600' if row.overdue }}">{{ row.overdue }}</td>
+      <td style="padding:6px 10px;border-top:1px solid #dde1e8">{{ row.on_time if row.on_time is not none else '—' }}{% if row.on_time is not none %}%{% endif %}</td></tr>{% endfor %}
+  </table>
+  {% elif not total %}
+  <p style="background:#e7f6ec;color:#067647;padding:12px;border-radius:6px">Nothing urgent today. No overdue or near-due notices, filings, DSCs or deadlines.</p>
+  {% endif %}
+  {% for cat, label, items in groups %}
+  <h2 style="font-size:15px;margin:18px 0 6px"><span style="display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;border-radius:10px;background:{{ '#b42318' if cat <= 2 else '#b25e09' if cat <= 4 else '#17233a' }};color:#fff;font-size:12px">{{ cat }}</span> {{ label }} ({{ items|length }})</h2>
+  <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #dde1e8;font-size:13px">
+    {% for i in items %}
+    <tr><td style="padding:7px 10px;border-top:1px solid #dde1e8;width:80px;white-space:nowrap;{{ 'color:#b42318;font-weight:600' if i.overdue }}">{{ i.due.strftime('%d %b') if i.due else '' }}{% if i.overdue %}<br>overdue{% endif %}</td>
+      <td style="padding:7px 10px;border-top:1px solid #dde1e8"><a href="{{ link(i.endpoint, **i.args) }}" style="color:#1f5fbf;font-weight:600">{{ i.title }}</a> · {{ i.client.name }}<br><span style="color:#5d6677">{{ i.detail }}{% if firm %} · {{ owners.get(i.owner_id, 'Unassigned') }}{% endif %}</span></td></tr>
+    {% endfor %}
+  </table>
+  {% endfor %}
+  <p style="margin-top:20px"><a href="{{ link('dashboard.today_view') }}" style="background:#1f5fbf;color:#fff;padding:8px 14px;border-radius:6px;text-decoration:none">Open your dashboard</a></p>
+  <p style="color:#5d6677;font-size:12px">Sent at 8:00 AM IST on working days by GMH Practice.</p>
+</div>
+</body></html>

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Add deadline{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('registers.index') }}">← DSC and registrations</a></p>
+<h1>Add registration deadline</h1>
+<form method="post" class="panel">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="grid">
+    <div class="field"><label class="req" for="client_id">Client</label><select id="client_id" name="client_id"><option value="">Choose</option>
+      {% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if values.get('client_id') == c.id|string }}>{{ c.code }} · {{ c.name }}</option>{% endfor %}</select></div>
+    <div class="field"><label class="req" for="kind">What</label><select id="kind" name="kind">
+      {% for k, l in kinds.items() %}<option value="{{ k }}" {{ 'selected' if values.get('kind') == k }}>{{ l }}</option>{% endfor %}</select></div>
+    <div class="field" id="basis-field"><label for="basis_date">GST registration granted on</label><input id="basis_date" type="date" name="basis_date" value="{{ values.get('basis_date', '') }}">
+      <div class="small muted">Due {{ rule_10a_days }} days later, or before the first GSTR-1 / IFF if that is earlier.</div></div>
+    <div class="field" id="due-field"><label for="due_date">Due date</label><input id="due_date" type="date" name="due_date" value="{{ values.get('due_date', '') }}">
+      <div class="small muted" id="iec-hint">Leave blank for IEC: due 30 June (the annual April–June window).</div></div>
+    <div class="field" style="grid-column:1/-1"><label for="notes">Notes</label><input id="notes" type="text" name="notes" value="{{ values.get('notes', '') }}"></div>
+  </div>
+  <button>Save</button>
+</form>
+<script>
+(function () {
+  var kind = document.getElementById('kind');
+  function sync() {
+    document.getElementById('basis-field').style.display = kind.value === 'gst_bank_10a' ? '' : 'none';
+    document.getElementById('due-field').style.display = kind.value === 'gst_bank_10a' ? 'none' : '';
+    document.getElementById('iec-hint').style.display = kind.value === 'iec_update' ? '' : 'none';
+  }
+  kind.addEventListener('change', sync); sync();
+})();
+</script>
+{% endblock %}

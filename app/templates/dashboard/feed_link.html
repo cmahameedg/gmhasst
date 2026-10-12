@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Calendar feed{% endblock %}
+{% block content %}
+<div class="panel" style="max-width:760px">
+  <h1>Your private calendar feed</h1>
+  <p>Copy this link now. It is shown only once. Anyone with the link can see the due dates and client names in it, so don't share it.</p>
+  <input type="text" readonly value="{{ url }}" onclick="this.select()">
+  <h2 style="margin-top:16px">Add to Google Calendar</h2>
+  <ol>
+    <li>Open Google Calendar on a computer.</li>
+    <li>Next to <em>Other calendars</em>, click <strong>+</strong> → <strong>From URL</strong>.</li>
+    <li>Paste the link and click <strong>Add calendar</strong>. Google refreshes it every few hours.</li>
+  </ol>
+  <p class="small muted">It covers the last 60 days and the next 12 months: filing due dates (with open counts), Return Master dates not yet generated, notice reply dates, hearings, DSC expiries and registration deadlines. Revoke it from the Calendar page at any time.</p>
+  <a href="{{ url_for('dashboard.month_view') }}">Back to calendar</a>
+</div>
+{% endblock %}

@@ -36,6 +36,77 @@
   <dl class="fields"><dt>{{ labels['fee_basis'] }}</dt><dd>{{ values.fee_basis or '—' }}</dd></dl>
   <p class="muted small">Invoices and receipts arrive in a later phase.</p>
 </div>
+{% elif tab == 'filings' %}
+{% if current_user.role != 'billing' %}
+<div class="panel">
+  <div class="actions" style="justify-content:space-between"><h2 style="margin:0">Registrations</h2>
+    {% if can_manage_regs %}<a class="button secondary" href="{{ url_for('board.registration_new', client_id=client.id) }}">Add registration</a>{% endif %}</div>
+  <table style="margin-top:10px">
+    <thead><tr><th>Type</th><th>Number</th><th>Scheme</th><th>Active</th><th>Returns</th><th></th></tr></thead>
+    <tbody>
+    {% for r in registrations %}
+      <tr>
+        <td>{{ kinds[r.kind][0] }}</td><td>{{ r.identifier }}</td><td>{{ r.scheme or '—' }}</td>
+        <td class="small">{{ r.active_from.strftime('%d-%m-%Y') if r.active_from else 'Start' }} – {{ r.active_to.strftime('%d-%m-%Y') if r.active_to else 'open' }}</td>
+        <td class="small">{{ r.return_types|map(attribute='name')|join(', ') }}</td>
+        <td>{% if can_manage_regs %}<a href="{{ url_for('board.registration_edit', reg_id=r.id) }}">Edit</a>{% endif %}</td>
+      </tr>
+    {% else %}<tr><td colspan="6" class="muted">No registrations yet. Filings are generated only from registrations.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+<div class="panel">
+  <h2>Filings</h2>
+  <table>
+    <thead><tr><th>Return</th><th>Period</th><th>Due</th><th>Status</th><th>ARN</th></tr></thead>
+    <tbody>
+    {% for f in client_filings %}
+      <tr>
+        <td><a href="{{ url_for('board.filing_detail', filing_id=f.id) }}">{{ f.return_type.name }}</a>{% if current_user.role != 'billing' %} <span class="small muted">{{ f.registration.identifier }}</span>{% endif %}</td>
+        <td>{{ f.period_label }}</td>
+        <td>{{ f.due_date.strftime('%d-%m-%Y') if f.due_date else '—' }}</td>
+        <td><span class="chip {{ colour(f) }}">{{ STATUSES[f.status] }}{% if f.nil_kind %} ({{ f.nil_kind }}){% endif %}</span></td>
+        <td class="small">{{ f.arn or '' }}</td>
+      </tr>
+    {% else %}<tr><td colspan="5" class="muted">No filings generated yet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% elif tab == 'notices' %}
+{% if current_user.role != 'billing' %}
+<div class="panel">
+  <div class="actions" style="justify-content:space-between"><h2 style="margin:0">Notices</h2>
+    {% if current_user.role in ['partner', 'manager', 'staff'] %}<a class="button secondary" href="{{ url_for('notices.new', client_id=client.id) }}">Record notice</a>{% endif %}</div>
+  <table style="margin-top:10px">
+    <thead><tr><th>Reply due</th><th>Notice</th><th>Period</th><th>Demand</th><th>Assigned</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for n in client_notices %}
+      <tr><td class="small">{{ n.reply_due_date.strftime('%d-%m-%Y') }}</td>
+        <td><a href="{{ url_for('notices.detail', notice_id=n.id) }}">{{ n.department }} · {{ n.notice_type }}</a><div class="small muted">{{ n.reference_no }}</div></td>
+        <td class="small">{{ n.period }}</td><td class="small">{{ format_inr(n.amount_demanded_paise) or '—' }}</td>
+        <td class="small">{{ n.assigned_to.name }}</td><td>{{ n.status }}</td></tr>
+    {% else %}<tr><td colspan="6" class="muted">No notices.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="panel">
+  <div class="actions" style="justify-content:space-between"><h2 style="margin:0">DSCs and registration deadlines</h2>
+    {% if can_edit_registers %}<div class="actions"><a class="button secondary" href="{{ url_for('registers.dsc_new', client_id=client.id) }}">Add DSC</a><a class="button secondary" href="{{ url_for('registers.deadline_new', client_id=client.id) }}">Add deadline</a></div>{% endif %}</div>
+  <table style="margin-top:10px"><tbody>
+    {% for d in client_dscs %}
+      {% set left = days_left(d.expiry_date) %}
+      <tr><td>DSC · {{ d.holder_name }}</td><td class="small">{{ d.dsc_class }} · {{ d.issuer }} · held by {{ d.held_by }}</td>
+        <td class="small">{{ d.expiry_date.strftime('%d-%m-%Y') }} {% if not d.active %}<span class="chip nil">inactive</span>{% elif left < 0 %}<span class="chip red">expired</span>{% elif left <= DSC_WARNING_DAYS %}<span class="chip red">{{ left }} days</span>{% endif %}</td></tr>
+    {% endfor %}
+    {% for r in client_deadlines %}
+      <tr><td>{{ DEADLINE_KINDS[r.kind] }}</td><td class="small">{{ r.notes or '' }}</td>
+        <td class="small">due {{ r.due_date.strftime('%d-%m-%Y') }}{% if r.done_on %} · done {{ r.done_on.strftime('%d-%m-%Y') }}{% endif %}</td></tr>
+    {% endfor %}
+    {% if not client_dscs and not client_deadlines %}<tr><td class="muted">None recorded.</td></tr>{% endif %}
+  </tbody></table>
+</div>
+{% else %}<div class="panel muted">Notices are not available for your role.</div>{% endif %}
 {% else %}
 <div class="panel muted">{{ tab|capitalize }} will be added in a later phase.</div>
 {% endif %}

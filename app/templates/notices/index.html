@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Notices{% endblock %}
+{% block content %}
+<div class="actions" style="justify-content:space-between;margin-bottom:12px">
+  <h1 style="margin:0">Notices <span class="muted small">({{ notices|length }})</span></h1>
+  {% if can_create %}<a class="button" href="{{ url_for('notices.new') }}">Record notice</a>{% endif %}
+</div>
+<form class="panel filters" method="get" style="grid-template-columns:2fr 1fr 1fr 1fr auto">
+  <div><label for="q">Search</label><input id="q" type="search" name="q" value="{{ args.get('q', '') }}" placeholder="Reference, client name, code or PAN"></div>
+  <div><label for="state">Show</label><select id="state" name="state">
+    {% for v, l in [('open', 'Open'), ('closed', 'Closed'), ('all', 'All')] %}<option value="{{ v }}" {{ 'selected' if args.get('state', 'open') == v }}>{{ l }}</option>{% endfor %}</select></div>
+  <div><label for="department">Department</label><select id="department" name="department"><option value="">All</option>
+    {% for d in departments %}<option {{ 'selected' if args.get('department') == d }}>{{ d }}</option>{% endfor %}</select></div>
+  <div><label for="assigned">Assigned to</label><select id="assigned" name="assigned"><option value="">All</option>
+    {% for u in staff %}<option value="{{ u.id }}" {{ 'selected' if args.get('assigned') == u.id|string }}>{{ u.name }}</option>{% endfor %}</select></div>
+  <div class="actions"><button>Filter</button><a href="{{ url_for('notices.index') }}">Clear</a></div>
+</form>
+<table>
+  <thead><tr><th>Reply due</th><th>Client</th><th>Notice</th><th>Period</th><th>Demand</th><th>Assigned</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for n in notices %}
+    {% set late = n.status in awaiting and n.reply_due_date < today() %}
+    <tr>
+      <td class="small" style="{{ 'color:var(--danger);font-weight:600' if late }}">{{ n.reply_due_date.strftime('%d-%m-%Y') }}{% if late %}<br>overdue{% elif n.status in awaiting %}<br>{{ days_left(n.reply_due_date) }} day(s){% endif %}</td>
+      <td><a href="{{ url_for('clients.profile', client_id=n.client.id, tab='notices') }}">{{ n.client.name }}</a><div class="small muted">{{ n.client.code }}</div></td>
+      <td><a href="{{ url_for('notices.detail', notice_id=n.id) }}">{{ n.department }} · {{ n.notice_type }}</a><div class="small muted">{{ n.reference_no }}</div></td>
+      <td class="small">{{ n.period }}</td>
+      <td class="small">{{ format_inr(n.amount_demanded_paise) or '—' }}</td>
+      <td class="small">{{ n.assigned_to.name }}</td>
+      <td><span class="chip {{ 'green' if n.status in closed else 'blue' if n.status in ['Replied', 'Hearing fixed', 'Appeal'] else 'red' if late else 'amber' }}">{{ n.status }}</span></td>
+    </tr>
+  {% else %}<tr><td colspan="7" class="muted">No notices.</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

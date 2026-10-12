@@ -1,0 +1,5 @@
+# Morning email at 8:00 AM IST on working days (the command itself skips
+# non-working days and holidays from WORKING_DAYS / HOLIDAYS, and never sends twice).
+# Install with:  crontab -e   (on the server that runs the app)
+CRON_TZ=Asia/Kolkata
+0 8 * * 1-6  cd /srv/gmhasst && FLASK_APP=wsgi.py BASE_URL=https://gmh.example.in SMTP_HOST=smtp.gmail.com SMTP_PORT=587 SMTP_USER=office@example.in SMTP_PASSWORD=app-password MAIL_FROM="GMH Practice <office@example.in>" .venv/bin/flask send-morning-emails >> instance/morning.log 2>&1

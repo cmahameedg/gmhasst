@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Calendar{% endblock %}
+{% block content %}
+<div class="actions" style="justify-content:space-between;margin-bottom:12px">
+  <div class="actions">
+    <a class="button secondary" href="{{ url_for('dashboard.month_view', month=prev_key) }}">←</a>
+    <h1 style="margin:0">{{ month_label(key) }}</h1>
+    <a class="button secondary" href="{{ url_for('dashboard.month_view', month=next_key) }}">→</a>
+  </div>
+  <form method="post" action="{{ url_for('dashboard.create_feed') }}" class="actions">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="secondary" name="action" value="create" {% if has_feed %}onclick="return confirm('Create a new link? The old link will stop working.')"{% endif %}>{{ 'New calendar feed link' if has_feed else 'Get calendar feed link (iCal)' }}</button>
+    {% if has_feed %}<button class="link" name="action" value="revoke">Revoke</button>{% endif %}
+  </form>
+</div>
+<div class="legend" style="margin-bottom:8px"><span class="chip red">Overdue / open</span><span class="chip amber">Open</span><span class="chip green">All done</span><span class="chip blue">Notice / hearing</span><span class="chip grey">Return Master (not generated)</span></div>
+<table class="calendar">
+  <thead><tr>{% for d in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}<th>{{ d }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for week in weeks %}
+    <tr>
+    {% for day in week %}
+      <td class="{{ 'other-month' if day.month != month }} {{ 'is-today' if day == today() }}">
+        <div class="daynum">{{ day.day }}</div>
+        {% for e in by_day[day] %}
+          <a class="chip {{ e.css }}" href="{{ url_for(e.endpoint, **e.args) if e.endpoint else '#' }}" title="{{ e.detail }}" data-kind="{{ e.kind }}">{{ e.title }}</a>
+        {% endfor %}
+      </td>
+    {% endfor %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

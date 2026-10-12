@@ -19,3 +19,20 @@ def local_day_start_utc(day):
     """Midnight of ``day`` in local time, as a naive UTC datetime for querying."""
     local = datetime(day.year, day.month, day.day, tzinfo=_tz())
     return local.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def today():
+    """Today's date in the practice's time zone (tests may pin it with the TODAY setting)."""
+    pinned = current_app.config.get("TODAY")
+    if pinned:
+        return pinned
+    return datetime.now(_tz()).date()
+
+
+def now_utc():
+    """Current time as naive UTC. When TODAY is pinned (tests), 08:00 local on that day."""
+    pinned = current_app.config.get("TODAY")
+    if pinned:
+        local = datetime(pinned.year, pinned.month, pinned.day, 8, 0, tzinfo=_tz())
+        return local.astimezone(timezone.utc).replace(tzinfo=None)
+    return datetime.now(timezone.utc).replace(tzinfo=None)

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Review queue{% endblock %}
+{% block content %}
+<div class="actions" style="justify-content:space-between">
+  <h1>Review queue</h1>
+  {% if perms.can_view_activity(current_user) %}
+    {% if everyone %}<a href="{{ url_for('board.review_queue') }}">Show only mine</a>{% else %}<a href="{{ url_for('board.review_queue', all=1) }}">Show everyone's</a>{% endif %}
+  {% endif %}
+</div>
+<h2>Ready for review ({{ to_review|length }})</h2>
+{% with rows=to_review, empty="Nothing waiting for review." %}{% include "board/_list.html" %}{% endwith %}
+<h2 style="margin-top:20px">Filed, waiting for closure ({{ to_close|length }})</h2>
+{% with rows=to_close, empty="Nothing waiting for closure." %}{% include "board/_list.html" %}{% endwith %}
+{% endblock %}
