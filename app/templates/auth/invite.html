@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Welcome{% endblock %}
+{% block content %}
+<div class="panel narrow">
+  <h1>Welcome, {{ invitee.name }}</h1>
+  <p class="muted">Choose a password for {{ invitee.email }}. You will set up your authenticator app next.</p>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field"><label for="password">Password (at least 10 characters)</label><input id="password" type="password" name="password" required minlength="10" autocomplete="new-password"></div>
+    <div class="field"><label for="confirm">Confirm password</label><input id="confirm" type="password" name="confirm" required autocomplete="new-password"></div>
+    <button>Continue</button>
+  </form>
+</div>
+{% endblock %}

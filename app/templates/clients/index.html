@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Clients{% endblock %}
+{% block content %}
+{% set billing = current_user.role == 'billing' %}
+<div class="actions" style="justify-content:space-between;margin-bottom:12px">
+  <h1 style="margin:0">Clients <span class="muted small">({{ total }})</span></h1>
+  <div class="actions">
+    <a class="button secondary" href="{{ url_for('clients.export', **args.to_dict(flat=True)) }}">Export CSV</a>
+    {% if perms.can_create_clients(current_user) %}<a class="button" href="{{ url_for('clients.new') }}">New client</a>{% endif %}
+  </div>
+</div>
+<form class="panel filters" method="get">
+  <div><label for="q">Search</label><input id="q" type="search" name="q" value="{{ args.get('q', '') }}" placeholder="Name, PAN, GSTIN or code"></div>
+  {% if not billing %}
+  <div><label for="entity_type">Entity type</label><select id="entity_type" name="entity_type"><option value="">All</option>
+    {% for e in entity_types %}<option {{ 'selected' if args.get('entity_type') == e }}>{{ e }}</option>{% endfor %}</select></div>
+  <div><label for="service">Service</label><select id="service" name="service"><option value="">All</option>
+    {% for s in services %}<option {{ 'selected' if args.get('service') == s }}>{{ s }}</option>{% endfor %}</select></div>
+  <div><label for="staff">Staff</label><select id="staff" name="staff"><option value="">All</option>
+    {% for u in staff %}<option value="{{ u.id }}" {{ 'selected' if args.get('staff') == u.id|string }}>{{ u.name }}</option>{% endfor %}</select></div>
+  <div><label for="status">Status</label><select id="status" name="status"><option value="">All</option>
+    {% for s in statuses %}<option {{ 'selected' if args.get('status') == s }}>{{ s }}</option>{% endfor %}</select></div>
+  {% endif %}
+  <div class="actions"><button>Search</button><a href="{{ url_for('clients.index') }}">Clear</a></div>
+</form>
+<table>
+  <thead><tr>
+    <th>Code</th><th>Name</th>
+    {% if not billing %}<th>Entity type</th>{% endif %}
+    <th>PAN</th><th>GSTIN</th>
+    {% if not billing %}<th>Primary / reviewer</th><th>Status</th>{% endif %}
+  </tr></thead>
+  <tbody>
+  {% for c in clients %}
+    <tr>
+      <td><a href="{{ url_for('clients.profile', client_id=c.id) }}">{{ c.code }}</a></td>
+      <td><a href="{{ url_for('clients.profile', client_id=c.id) }}">{{ c.name }}</a>{% if c.trade_name and not billing %}<div class="small muted">{{ c.trade_name }}</div>{% endif %}</td>
+      {% if not billing %}<td>{{ c.entity_type }}</td>{% endif %}
+      <td>{{ c.pan }}</td>
+      <td class="small">{% for g in c.gstins %}{{ g.gstin }}<br>{% endfor %}</td>
+      {% if not billing %}
+      <td class="small">{{ c.primary_staff.name if c.primary_staff else '—' }}<br><span class="muted">{{ c.reviewer_staff.name if c.reviewer_staff else '—' }}</span></td>
+      <td><span class="badge {{ c.status }}">{{ c.status }}</span></td>
+      {% endif %}
+    </tr>
+  {% else %}
+    <tr><td colspan="7" class="muted">No clients found.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if pages > 1 %}
+<div class="pager">
+  {% if page > 1 %}{% set a = args.to_dict(flat=True) %}{% set _ = a.update(page=page-1) %}<a href="{{ url_for('clients.index', **a) }}">← Previous</a>{% endif %}
+  <span class="muted">Page {{ page }} of {{ pages }}</span>
+  {% if page < pages %}{% set a = args.to_dict(flat=True) %}{% set _ = a.update(page=page+1) %}<a href="{{ url_for('clients.index', **a) }}">Next →</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

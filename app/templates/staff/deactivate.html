@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Deactivate {{ member.name }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('staff.detail', user_id=member.id) }}">← {{ member.name }}</a></p>
+<h1>Deactivate {{ member.name }}</h1>
+<form method="post" class="panel">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if clients %}
+  <p>{{ member.name }} holds {{ clients|length }} client(s). Choose who takes each one over. Rows left blank use the default.</p>
+  <div class="filters" style="grid-template-columns:1fr 1fr">
+    <div><label for="default_primary">Default new primary</label><select id="default_primary" name="default_primary"><option value="">—</option>{% for u in candidates %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select></div>
+    <div><label for="default_reviewer">Default new reviewer</label><select id="default_reviewer" name="default_reviewer"><option value="">—</option>{% for u in candidates %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select></div>
+  </div>
+  <table style="margin-top:12px">
+    <thead><tr><th>Client</th><th>Role held</th><th>New owner</th></tr></thead>
+    <tbody>
+    {% for c in clients %}
+      {% set slot = 'primary' if c.primary_staff_id == member.id else 'reviewer' %}
+      {% set picked = (chosen.get(c.id) or {}).get(slot ~ '_staff', '') %}
+      <tr class="{{ 'row-error' if errors.get(c.id) }}">
+        <td>{{ c.code }} · {{ c.name }}</td>
+        <td>{{ slot|capitalize }}</td>
+        <td>
+          <select name="{{ slot }}_{{ c.id }}"><option value="">(use default)</option>
+            {% for u in candidates %}<option value="{{ u.id }}" {{ 'selected' if picked == u.id|string }}>{{ u.name }}</option>{% endfor %}
+          </select>
+          {% if errors.get(c.id) %}<div class="errors-list">{{ errors[c.id] }}</div>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>{{ member.name }} holds no clients.</p>
+  {% endif %}
+  <p class="muted small">After this, {{ member.name }} is logged out and cannot sign in. Their activity history is kept.</p>
+  <button class="danger">Reassign and deactivate</button>
+</form>
+{% endblock %}

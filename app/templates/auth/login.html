@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Log in{% endblock %}
+{% block content %}
+<div class="panel narrow">
+  <h1>Log in</h1>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field"><label for="email">Email</label><input id="email" type="email" name="email" required autofocus autocomplete="username"></div>
+    <div class="field"><label for="password">Password</label><input id="password" type="password" name="password" required autocomplete="current-password"></div>
+    <button>Continue</button>
+  </form>
+</div>
+{% endblock %}

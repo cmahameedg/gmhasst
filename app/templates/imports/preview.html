@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Import preview{% endblock %}
+{% block content %}
+<h1>Preview: {{ batch.filename }}</h1>
+<div class="panel actions" style="justify-content:space-between">
+  <div>
+    <strong>{{ rows|length }}</strong> rows · <span style="color:var(--ok)"><strong>{{ good }}</strong> ready</span> ·
+    <span style="color:var(--danger)"><strong>{{ bad }}</strong> with errors</span>
+    {% if ignored %}<div class="small muted">Columns not imported: {{ ignored|join(', ') }}</div>{% endif %}
+  </div>
+  <div class="actions">
+    {% if bad %}<a class="button secondary" href="{{ url_for('imports.errors_csv', token=batch.token) }}">Download rows with errors</a>{% endif %}
+    {% if batch.confirmed_at %}
+      <span class="muted">Already imported.</span>
+    {% elif good %}
+    <form method="post" action="{{ url_for('imports.confirm', token=batch.token) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button>Import {{ good }} client(s){% if bad %}, skip {{ bad }}{% endif %}</button>
+    </form>
+    {% endif %}
+    <a href="{{ url_for('imports.upload') }}">Upload a different file</a>
+  </div>
+</div>
+<div style="overflow-x:auto">
+<table>
+  <thead><tr><th>Row</th><th>Result</th>{% for c in columns %}<th>{{ labels[c] }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr class="{{ 'row-error' if r.errors }}" data-row="{{ r.line }}">
+      <td>{{ r.line }}</td>
+      <td>{% if r.errors %}<ul class="errors-list">{% for k, msg in r.errors.items() %}<li>{{ msg }}</li>{% endfor %}</ul>{% else %}<span class="badge Active">OK</span>{% endif %}</td>
+      {% for c in columns %}<td class="{{ 'cell-error' if c in r.errors }}">{{ r['values'].get(c, '') }}</td>{% endfor %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

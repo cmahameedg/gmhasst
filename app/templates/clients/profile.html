@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ client.code }} {{ client.name }}{% endblock %}
+{% block content %}
+<div class="actions" style="justify-content:space-between;margin-bottom:12px">
+  <div>
+    <div class="muted small">{{ client.code }}</div>
+    <h1 style="margin:0">{{ client.name }} {% if 'status' in fields %}<span class="badge {{ client.status }}">{{ client.status }}</span>{% endif %}</h1>
+  </div>
+  <div class="actions">
+    {% if perms.can_view_activity(current_user) %}<a class="button secondary" href="{{ url_for('activity.index', client=client.id) }}">History</a>{% endif %}
+    {% if can_edit %}<a class="button" href="{{ url_for('clients.edit', client_id=client.id) }}">Edit</a>{% endif %}
+  </div>
+</div>
+<nav class="tabs">
+  {% for t in tabs %}<a href="{{ url_for('clients.profile', client_id=client.id, tab=t) }}" class="{{ 'active' if t == tab }}">{{ t|capitalize }}</a>{% endfor %}
+</nav>
+{% if tab == 'overview' %}
+<div class="panel">
+  <dl class="fields">
+  {% for key in fields if key != 'code' %}
+    {% if key != 'cin_llpin' or values.cin_llpin or client.entity_type in ['LLP', 'Private Limited', 'Public Limited'] %}
+    <dt>{{ labels[key] }}</dt>
+    <dd>{{ values[key] or '—' }}{% if key == 'state' and state_code %} <span class="muted">(GST state code {{ state_code }})</span>{% endif %}</dd>
+    {% endif %}
+  {% endfor %}
+  </dl>
+</div>
+{% if group_members %}
+<div class="panel">
+  <h2>Others in {{ client.group.name }}</h2>
+  <ul>{% for m in group_members %}<li><a href="{{ url_for('clients.profile', client_id=m.id) }}">{{ m.code }} {{ m.name }}</a></li>{% endfor %}</ul>
+</div>
+{% endif %}
+{% elif tab == 'fees' %}
+<div class="panel">
+  <dl class="fields"><dt>{{ labels['fee_basis'] }}</dt><dd>{{ values.fee_basis or '—' }}</dd></dl>
+  <p class="muted small">Invoices and receipts arrive in a later phase.</p>
+</div>
+{% else %}
+<div class="panel muted">{{ tab|capitalize }} will be added in a later phase.</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Clients{% endblock %} · GMH Practice</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% if current_user %}
+<header class="top">
+  <a class="brand" href="{{ url_for('clients.index') }}">GMH Practice</a>
+  {% set ep = request.endpoint or '' %}
+  <a href="{{ url_for('clients.index') }}" class="{{ 'active' if ep.startswith('clients.') }}">Clients</a>
+  {% if perms.can_import(current_user) %}<a href="{{ url_for('imports.upload') }}" class="{{ 'active' if ep.startswith('imports.') }}">Import</a>{% endif %}
+  {% if perms.can_manage_staff(current_user) %}<a href="{{ url_for('staff.index') }}" class="{{ 'active' if ep.startswith('staff.') }}">Staff</a>{% endif %}
+  {% if perms.can_view_activity(current_user) %}<a href="{{ url_for('activity.index') }}" class="{{ 'active' if ep.startswith('activity.') }}">Activity log</a>{% endif %}
+  <span class="spacer"></span>
+  <span class="who">{{ current_user.name }} · {{ ROLE_LABELS[current_user.role] }}</span>
+  <form method="post" action="{{ url_for('auth.logout') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="link" style="color:#dfe7f5">Log out</button>
+  </form>
+</header>
+{% endif %}
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Activity log{% endblock %}
+{% block content %}
+<h1>Activity log</h1>
+<form class="panel filters" method="get" style="grid-template-columns:2fr 1fr 1fr 1fr auto">
+  <div><label for="client">Client</label><select id="client" name="client"><option value="">All</option>
+    {% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if args.get('client') == c.id|string }}>{{ c.code }} · {{ c.name }}</option>{% endfor %}</select></div>
+  <div><label for="staff">Staff member</label><select id="staff" name="staff"><option value="">All</option>
+    {% for u in staff %}<option value="{{ u.id }}" {{ 'selected' if args.get('staff') == u.id|string }}>{{ u.name }}</option>{% endfor %}</select></div>
+  <div><label for="from">From</label><input id="from" type="date" name="from" value="{{ args.get('from', '') }}"></div>
+  <div><label for="to">To</label><input id="to" type="date" name="to" value="{{ args.get('to', '') }}"></div>
+  <div class="actions"><button>Filter</button><a href="{{ url_for('activity.index') }}">Clear</a></div>
+</form>
+<table>
+  <thead><tr><th>When</th><th>Who</th><th>What</th><th>Changes (old → new)</th></tr></thead>
+  <tbody>
+  {% for event, changes in rows %}
+  <tr>
+    <td class="small">{{ event.at|localtime }}</td>
+    <td>{{ event.user.name if event.user else 'System' }}</td>
+    <td>
+      {{ event.summary }}
+      {% if event.client %}<div class="small"><a href="{{ url_for('clients.profile', client_id=event.client.id) }}">{{ event.client.code }} · {{ event.client.name }}</a></div>{% endif %}
+      {% if event.subject_user and event.subject_user != event.user %}<div class="small muted">Staff: {{ event.subject_user.name }}</div>{% endif %}
+    </td>
+    <td class="small">
+      {% set collapsed = event.action in ['client.create', 'client.import'] %}
+      {% if collapsed and changes %}<details><summary>{{ changes|length }} fields set</summary>{% endif %}
+      {% for ch in changes %}
+        <div><strong>{{ fields.get(ch.field, ch.field|capitalize) }}:</strong>
+          {% if ch.old_value %}<span class="change-old">{{ ch.old_value }}</span>{% else %}<span class="muted">(blank)</span>{% endif %}
+          → {% if ch.new_value %}<span class="change-new">{{ ch.new_value }}</span>{% else %}<span class="muted">(blank)</span>{% endif %}</div>
+      {% endfor %}
+      {% if collapsed and changes %}</details>{% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="4" class="muted">No activity matches.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<div class="pager">
+  {% if page > 1 %}{% set a = args.to_dict(flat=True) %}{% set _ = a.update(page=page-1) %}<a href="{{ url_for('activity.index', **a) }}">← Newer</a>{% endif %}
+  {% if has_next %}{% set a = args.to_dict(flat=True) %}{% set _ = a.update(page=page+1) %}<a href="{{ url_for('activity.index', **a) }}">Older →</a>{% endif %}
+</div>
+{% endblock %}

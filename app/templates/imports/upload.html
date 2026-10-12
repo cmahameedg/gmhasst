@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Import clients{% endblock %}
+{% block content %}
+<h1>Import clients from CSV</h1>
+<form method="post" enctype="multipart/form-data" class="panel">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="field"><label for="file">CSV file</label><input id="file" type="file" name="file" accept=".csv,text/csv" required></div>
+  <button>Upload and preview</button>
+  <p class="small muted">Nothing is saved until you confirm on the next screen. Client codes are assigned automatically.</p>
+</form>
+<div class="panel small">
+  <h2>Columns</h2>
+  <p>First row must be headers. Use either the column name or the label shown here. Separate multiple GSTINs or services with <code>;</code>. Staff are matched by email. Dates may be DD-MM-YYYY or YYYY-MM-DD.</p>
+  <table><thead><tr><th>Column</th><th>Label</th></tr></thead><tbody>
+  {% for key in columns %}<tr><td><code>{{ key }}</code></td><td>{{ labels[key] }}</td></tr>{% endfor %}
+  </tbody></table>
+</div>
+{% endblock %}

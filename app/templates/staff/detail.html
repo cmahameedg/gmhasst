@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ member.name }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('staff.index') }}">← Staff</a></p>
+<h1>{{ member.name }} <span class="muted small">{{ member.email }}</span> {% if not member.active %}<span class="badge Closed">Deactivated</span>{% endif %}</h1>
+<div class="panel actions">
+  <form method="post" action="{{ url_for('staff.set_role', user_id=member.id) }}" class="actions">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="role" style="margin:0">Role</label>
+    <select id="role" name="role" style="width:auto">{% for r in roles %}<option value="{{ r }}" {{ 'selected' if r == member.role }}>{{ ROLE_LABELS[r] }}</option>{% endfor %}</select>
+    <button class="secondary">Change role</button>
+  </form>
+  <span class="spacer" style="flex:1"></span>
+  {% if member.active %}
+    <form method="post" action="{{ url_for('staff.reset_access', user_id=member.id) }}" onsubmit="return confirm('Reset password and 2FA for {{ member.name }}? They will need a new invite link.')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="secondary">Reset password &amp; 2FA</button>
+    </form>
+    {% if member.id != current_user.id %}<a class="button danger" href="{{ url_for('staff.deactivate', user_id=member.id) }}">Deactivate leaver…</a>{% endif %}
+  {% else %}
+    <form method="post" action="{{ url_for('staff.reactivate', user_id=member.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="secondary">Reactivate</button>
+    </form>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <h2>Assigned clients ({{ clients|length }})</h2>
+  {% if assignable %}
+  <form method="post" action="{{ url_for('staff.assign', user_id=member.id) }}" class="actions" style="margin-bottom:12px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <select name="client_id" style="max-width:420px">{% for c in all_clients %}<option value="{{ c.id }}">{{ c.code }} · {{ c.name }}</option>{% endfor %}</select>
+    <select name="slot" style="width:auto"><option value="primary_staff">as primary</option><option value="reviewer_staff">as reviewer</option></select>
+    <button>Assign</button>
+  </form>
+  {% elif member.active %}
+  <p class="muted small">{{ ROLE_LABELS[member.role] }} users cannot be assigned clients.</p>
+  {% endif %}
+  <table>
+    <thead><tr><th>Client</th><th>As</th><th></th></tr></thead>
+    <tbody>
+    {% for c in clients %}
+      {% set slot = 'primary_staff' if c.primary_staff_id == member.id else 'reviewer_staff' %}
+      <tr>
+        <td><a href="{{ url_for('clients.profile', client_id=c.id) }}">{{ c.code }} · {{ c.name }}</a></td>
+        <td>{{ 'Primary' if slot == 'primary_staff' else 'Reviewer' }}</td>
+        <td>
+          <form method="post" action="{{ url_for('staff.unassign', user_id=member.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="client_id" value="{{ c.id }}"><input type="hidden" name="slot" value="{{ slot }}">
+            <button class="link">Unassign</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}<tr><td colspan="3" class="muted">No clients assigned.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

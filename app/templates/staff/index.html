@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Staff{% endblock %}
+{% block content %}
+<h1>Staff</h1>
+<form method="post" action="{{ url_for('staff.invite') }}" class="panel">
+  <h2>Invite a staff member</h2>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="filters" style="grid-template-columns:2fr 2fr 1fr auto">
+    <div><label for="name">Name</label><input id="name" type="text" name="name" required></div>
+    <div><label for="email">Email</label><input id="email" type="email" name="email" required></div>
+    <div><label for="role">Role</label><select id="role" name="role">{% for r in roles %}<option value="{{ r }}" {{ 'selected' if r == 'staff' }}>{{ ROLE_LABELS[r] }}</option>{% endfor %}</select></div>
+    <div><button>Create invite link</button></div>
+  </div>
+</form>
+<table>
+  <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Clients</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for u in users %}
+  <tr>
+    <td><a href="{{ url_for('staff.detail', user_id=u.id) }}">{{ u.name }}</a></td>
+    <td>{{ u.email }}</td>
+    <td>{{ ROLE_LABELS[u.role] }}</td>
+    <td>{{ counts[u.id] }}</td>
+    <td>{% if not u.active %}<span class="badge Closed">Deactivated</span>{% elif u.is_pending %}<span class="badge Inactive">Invite pending</span>{% elif not u.totp_enabled %}<span class="badge Inactive">2FA not set up</span>{% else %}<span class="badge Active">Active</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

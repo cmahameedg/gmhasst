@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit ' ~ client.code if client else 'New client' }}{% endblock %}
+{% macro err(key) %}{% if errors.get(key) %}<div class="error">{{ errors[key] }}</div>{% endif %}{% endmacro %}
+{% block content %}
+<h1>{{ 'Edit ' ~ client.code ~ ' · ' ~ client.name if client else 'New client' }}</h1>
+{% if errors %}<div class="flash error">Please fix the highlighted fields.</div>{% endif %}
+<form method="post" class="panel">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="grid">
+  {% for key in shown %}
+    {% set v = values.get(key) or '' %}
+    <div class="field {{ 'has-error' if errors.get(key) }}" {% if key == 'cin_llpin' %}id="cin-field"{% endif %}
+         {% if key in ['address', 'notes', 'services', 'gstins'] %}style="grid-column:1/-1"{% endif %}>
+      <label for="{{ key }}" class="{{ 'req' if key in required and key in editable }}">{{ labels[key] }}</label>
+      {% if key not in editable %}
+        <div class="muted">{{ (v|join('; ') if v is not string else v) or '—' }}</div>
+      {% elif key in choices %}
+        <select id="{{ key }}" name="{{ key }}">
+          {% if key not in required %}<option value="">—</option>{% endif %}
+          {% for opt in choices[key] %}<option {{ 'selected' if v == opt }}>{{ opt }}</option>{% endfor %}
+        </select>
+        {% if key == 'state' %}<div class="small muted" id="state-code"></div>{% endif %}
+      {% elif key == 'services' %}
+        <div class="checks">{% for s in services %}<label><input type="checkbox" name="services" value="{{ s }}" {{ 'checked' if s in (v or []) }}> {{ s }}</label>{% endfor %}</div>
+      {% elif key in ['primary_staff', 'reviewer_staff'] %}
+        <select id="{{ key }}" name="{{ key }}"><option value="">—</option>
+          {% for u in staff %}<option value="{{ u.id }}" {{ 'selected' if v == u.id|string }}>{{ u.name }} ({{ ROLE_LABELS[u.role] }})</option>{% endfor %}
+        </select>
+      {% elif key in ['dob_incorporation', 'onboarding_date'] %}
+        <input id="{{ key }}" type="date" name="{{ key }}" value="{{ v }}">
+      {% elif key == 'gstins' %}
+        <textarea id="gstins" name="gstins" placeholder="One GSTIN per line">{{ v }}</textarea>
+      {% elif key in ['address', 'notes'] %}
+        <textarea id="{{ key }}" name="{{ key }}">{{ v }}</textarea>
+      {% elif key == 'group' %}
+        <input id="group" type="text" name="group" value="{{ v }}" list="group-list" placeholder="Pick or type a new group">
+        <datalist id="group-list">{% for gname in groups %}<option value="{{ gname }}">{% endfor %}</datalist>
+      {% else %}
+        <input id="{{ key }}" type="{{ 'email' if key == 'email' else 'text' }}" name="{{ key }}" value="{{ v }}">
+      {% endif %}
+      {{ err(key) }}
+    </div>
+  {% endfor %}
+  </div>
+  <div class="actions">
+    <button>Save</button>
+    <a href="{{ url_for('clients.profile', client_id=client.id) if client else url_for('clients.index') }}">Cancel</a>
+  </div>
+</form>
+<script>
+(function () {
+  var cinTypes = {{ cin_types|tojson }}, states = {{ states|tojson }};
+  var entity = document.getElementById('entity_type'), cin = document.getElementById('cin-field');
+  var cinInput = document.getElementById('cin_llpin');
+  function syncCin() {
+    if (!entity || !cin) return;
+    var hasValue = cinInput && cinInput.value.trim() !== '';
+    cin.style.display = (cinTypes.indexOf(entity.value) >= 0 || hasValue) ? '' : 'none';
+  }
+  if (entity) entity.addEventListener('change', syncCin); syncCin();
+  var state = document.getElementById('state'), code = document.getElementById('state-code');
+  function syncState() { if (state && code) code.textContent = states[state.value] ? 'GST state code ' + states[state.value] : ''; }
+  if (state) state.addEventListener('change', syncState); syncState();
+})();
+</script>
+{% endblock %}
