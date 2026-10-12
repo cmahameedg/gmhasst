@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}{{ rt.name }} {{ f.period_label }} · {{ f.client.name }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('board.board', month=f.gen_month) }}">← Board {{ month_label(f.gen_month) }}</a></p>
+<div class="actions" style="justify-content:space-between;margin-bottom:12px">
+  <div>
+    <div class="muted small"><a href="{{ url_for('clients.profile', client_id=f.client.id, tab='filings') }}">{{ f.client.code }} · {{ f.client.name }}</a></div>
+    <h1 style="margin:0">{{ rt.name }} · {{ f.period_label }} <span class="chip {{ colour(f) }}" style="font-size:14px">{{ 'Overdue · ' if is_overdue(f) }}{{ STATUSES[f.status] }}{% if f.nil_kind %} ({{ f.nil_kind }}){% endif %}</span></h1>
+    {% if rt.old_name or rt.new_name %}<div class="small muted">Also known as: {{ [rt.old_name, rt.new_name]|select|join(' / ') }}</div>{% endif %}
+  </div>
+  {% if rt.portal_url %}<a class="button secondary" href="{{ rt.portal_url }}" target="_blank" rel="noopener noreferrer">Open portal ↗</a>{% endif %}
+</div>
+
+<div class="two-col">
+<div class="panel">
+  <dl class="fields" style="grid-template-columns:150px 1fr">
+    <dt>{{ f.registration.kind == 'GST' and 'GSTIN' or 'Registration' }}</dt><dd>{% if show_identifier %}{{ f.registration.identifier }}{% else %}—{% endif %}{% if f.registration.scheme %} <span class="muted">({{ f.registration.scheme }})</span>{% endif %}</dd>
+    <dt>Period</dt><dd>{{ f.period_start.strftime('%d-%m-%Y') }} to {{ f.period_end.strftime('%d-%m-%Y') }}</dd>
+    <dt>Due date</dt><dd>{% if f.due_date %}{{ f.due_date.strftime('%d-%m-%Y') }}{% else %}<span class="muted">waiting for {{ rt.event_label or 'event date' }}</span>{% endif %}</dd>
+    {% if rt.due_basis == 'event' %}<dt>{{ rt.event_label or 'Event date' }}</dt><dd>{{ f.event_date.strftime('%d-%m-%Y') if f.event_date else '—' }}</dd>{% endif %}
+    <dt>Maker</dt><dd>{{ f.maker.name if f.maker else '—' }}</dd>
+    <dt>Reviewer</dt><dd>{{ f.reviewer.name if f.reviewer else '—' }}</dd>
+    <dt>ARN / ack no.</dt><dd>{{ f.arn or '—' }}</dd>
+    <dt>Filed on</dt><dd>{{ f.filed_on.strftime('%d-%m-%Y') if f.filed_on else '—' }}</dd>
+    <dt>Tax paid</dt><dd>{{ format_inr(f.tax_paid_paise) or '—' }}</dd>
+    <dt>Late fee</dt><dd>{{ format_inr(f.late_fee_paise) or '—' }}</dd>
+    <dt>Interest</dt><dd>{{ format_inr(f.interest_paise) or '—' }}</dd>
+    <dt>Challan</dt><dd>{{ f.challan_ref or '—' }}</dd>
+    {% if f.status == 'closed' %}<dt>Closure</dt><dd>Acknowledgement saved{% if f.everified %}; e-verified{% endif %}</dd>{% endif %}
+  </dl>
+</div>
+
+<div class="panel">
+  <h2>Next step</h2>
+  {% if not allowed %}<p class="muted">{% if f.status == 'closed' %}This filing is closed.{% else %}No action for you at this stage.{% endif %}</p>{% endif %}
+  {% set simple = [] %}
+  {% for to in allowed if to not in ['filed', 'closed', 'nil_na', 'review_queries'] %}{% set _ = simple.append(to) %}{% endfor %}
+  {% if simple %}
+  <form method="post" action="{{ url_for('board.filing_status', filing_id=f.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field"><label for="note">Note (optional)</label><input id="note" type="text" name="note"></div>
+    <div class="actions">{% for to in simple %}<button name="to" value="{{ to }}" class="{{ '' if loop.first else 'secondary' }}">{{ STATUSES[to] }}</button>{% endfor %}</div>
+  </form>
+  {% endif %}
+  {% if 'review_queries' in allowed %}
+  <form method="post" action="{{ url_for('board.filing_status', filing_id=f.id) }}" style="margin-top:14px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="to" value="review_queries">
+    <div class="field"><label for="rq">Review queries (sent back to the maker)</label><textarea id="rq" name="note" required></textarea></div>
+    <button class="secondary">Send back with queries</button>
+  </form>
+  {% endif %}
+  {% if 'filed' in allowed %}
+  <form method="post" action="{{ url_for('board.filing_status', filing_id=f.id) }}" style="margin-top:14px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="to" value="filed">
+    <h2>Mark filed</h2>
+    <div class="grid" style="grid-template-columns:1fr 1fr">
+      <div class="field"><label for="arn" class="req">ARN / acknowledgement no.</label><input id="arn" type="text" name="arn" required></div>
+      <div class="field"><label for="filed_on" class="req">Filing date</label><input id="filed_on" type="date" name="filed_on" value="{{ today().isoformat() }}" required></div>
+      <div class="field"><label for="tax_paid" class="req">Tax paid (₹)</label><input id="tax_paid" type="text" name="tax_paid" inputmode="decimal" placeholder="0" required></div>
+      <div class="field"><label for="late_fee">Late fee (₹)</label><input id="late_fee" type="text" name="late_fee" inputmode="decimal"></div>
+      <div class="field"><label for="interest">Interest (₹)</label><input id="interest" type="text" name="interest" inputmode="decimal"></div>
+    </div>
+    <p class="small muted">Late fee and interest are required when the filing date is after the due date.</p>
+    <button>Mark filed</button>
+  </form>
+  {% endif %}
+  {% if 'closed' in allowed %}
+  <form method="post" action="{{ url_for('board.filing_status', filing_id=f.id) }}" style="margin-top:14px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="to" value="closed">
+    <h2>Close</h2>
+    <label style="font-weight:400"><input type="checkbox" name="ack_saved" value="1"> Acknowledgement saved</label>
+    {% if rt.requires_everify %}<label style="font-weight:400"><input type="checkbox" name="everified" value="1"> Return e-verified</label>{% endif %}
+    {% if f.tax_paid_paise %}<div class="field" style="margin-top:8px"><label for="challan_ref" class="req">Challan (CIN / BRN)</label><input id="challan_ref" type="text" name="challan_ref" value="{{ f.challan_ref or '' }}"></div>{% endif %}
+    <button style="margin-top:8px">Close filing</button>
+  </form>
+  {% endif %}
+  {% if 'nil_na' in allowed %}
+  <details style="margin-top:14px"><summary style="cursor:pointer;color:var(--accent)">Nil return / not applicable…</summary>
+  <form method="post" action="{{ url_for('board.filing_status', filing_id=f.id) }}" style="margin-top:8px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="to" value="nil_na">
+    <div class="field"><select name="nil_kind"><option value="Nil">Nil return filed</option><option value="Not applicable">Not applicable this period</option></select></div>
+    <div class="field"><label for="nil_arn">ARN (if a nil return was filed)</label><input id="nil_arn" type="text" name="arn"></div>
+    <div class="field"><label for="nil_note">Note</label><input id="nil_note" type="text" name="note"></div>
+    <button class="secondary">Save</button>
+  </form>
+  </details>
+  {% endif %}
+
+  {% if can_set_event %}
+  <form method="post" action="{{ url_for('board.filing_event_date', filing_id=f.id) }}" class="actions" style="margin-top:16px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="event_date" style="margin:0">{{ rt.event_label or 'Event date' }}</label>
+    <input id="event_date" type="date" name="event_date" value="{{ f.event_date.isoformat() if f.event_date else '' }}" style="width:auto">
+    <button class="secondary">Save (updates all AGM-based filings)</button>
+  </form>
+  {% endif %}
+
+  {% if can_supervise and f.status not in ['filed', 'closed', 'nil_na'] %}
+  <form method="post" action="{{ url_for('board.filing_assign', filing_id=f.id) }}" class="actions" style="margin-top:16px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <select name="maker" style="width:auto"><option value="">Maker: —</option>{% for u in staff %}<option value="{{ u.id }}" {{ 'selected' if f.maker_id == u.id }}>Maker: {{ u.name }}</option>{% endfor %}</select>
+    <select name="reviewer" style="width:auto"><option value="">Reviewer: —</option>{% for u in staff %}<option value="{{ u.id }}" {{ 'selected' if f.reviewer_id == u.id }}>Reviewer: {{ u.name }}</option>{% endfor %}</select>
+    <button class="secondary">Reassign</button>
+  </form>
+  {% endif %}
+</div>
+</div>
+
+<div class="two-col">
+<div class="panel">
+  <h2>Status history</h2>
+  <ul class="timeline">
+  {% for h in f.history|reverse %}
+    <li><span class="small muted">{{ h.at|localtime }}</span> · {{ h.user.name if h.user else 'System' }}<br>
+      {% if h.from_status %}{{ STATUSES[h.from_status] }} → {% endif %}<strong>{{ STATUSES[h.to_status] }}</strong>{% if h.note %}<div class="small">{{ h.note }}</div>{% endif %}</li>
+  {% endfor %}
+  </ul>
+</div>
+<div class="panel" id="comments">
+  <h2>Comments</h2>
+  {% for cm in f.comments %}
+    <div class="comment"><span class="small muted">{{ cm.at|localtime }}</span> · <strong>{{ cm.user.name }}</strong>
+      <div class="body">{{ cm.body }}</div>
+      {% if cm.mentions %}<div class="small muted">Notified: {{ cm.mentions|map(attribute='user.name')|join(', ') }}</div>{% endif %}
+    </div>
+  {% else %}<p class="muted small">No comments yet.</p>{% endfor %}
+  {% if can_comment %}
+  <form method="post" action="{{ url_for('board.filing_comment', filing_id=f.id) }}" style="margin-top:10px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <textarea name="body" placeholder="Write a comment. Type @name to notify someone." required></textarea>
+    <div class="small muted" style="margin:4px 0 8px">Mention: {% for h, n in handles %}<code>@{{ h }}</code> {{ n }}{{ ', ' if not loop.last }}{% endfor %}</div>
+    <button>Comment</button>
+  </form>
+  {% endif %}
+</div>
+</div>
+{% endblock %}

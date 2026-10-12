@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Board {{ month_label(key) }}{% endblock %}
+{% block content %}
+<div class="actions" style="justify-content:space-between;margin-bottom:12px">
+  <div class="actions">
+    <a class="button secondary" href="{{ url_for('board.board', month=prev_key) }}">←</a>
+    <h1 style="margin:0">Compliance board · {{ month_label(key) }}</h1>
+    <a class="button secondary" href="{{ url_for('board.board', month=next_key) }}">→</a>
+  </div>
+  {% if current_user.role == 'partner' %}
+  <form method="post" action="{{ url_for('board.generate') }}" class="actions">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="month" name="month" value="{{ key }}" style="width:auto">
+    <button>Generate period</button>
+  </form>
+  {% endif %}
+</div>
+<form class="panel filters" method="get" style="grid-template-columns:2fr 1fr 1fr auto auto">
+  <input type="hidden" name="month" value="{{ key }}">
+  <div><label for="q">Client</label><input id="q" type="search" name="q" value="{{ args.get('q', '') }}" placeholder="Name, code, PAN or GSTIN"></div>
+  <div><label for="category">Category</label><select id="category" name="category"><option value="">All</option>
+    {% for cat in categories %}<option {{ 'selected' if args.get('category') == cat }}>{{ cat }}</option>{% endfor %}</select></div>
+  <div><label for="staff">Staff</label><select id="staff" name="staff"><option value="">All</option>
+    {% for u in staff %}<option value="{{ u.id }}" {{ 'selected' if args.get('staff') == u.id|string }}>{{ u.name }}</option>{% endfor %}</select></div>
+  <label class="actions" style="font-weight:400"><input type="checkbox" name="overdue" value="1" {{ 'checked' if args.get('overdue') }}> Overdue only</label>
+  <div class="actions"><button>Filter</button><a href="{{ url_for('board.board', month=key) }}">Clear</a></div>
+</form>
+<div class="actions" style="justify-content:space-between;margin-bottom:8px">
+  <div class="legend">
+    <strong>{{ total }}</strong> filings · <strong style="color:var(--danger)">{{ overdue }}</strong> overdue ·
+    <span class="chip grey">Not started</span><span class="chip amber">In progress</span><span class="chip blue">Ready for review</span>
+    <span class="chip green">Filed / Closed</span><span class="chip nil">Nil / NA</span><span class="chip red">Overdue</span>
+    <span class="small muted">↻ = carried forward from an earlier period</span>
+  </div>
+  {% if can_supervise %}
+  <details><summary class="small" style="cursor:pointer;color:var(--accent)">Reassign filings…</summary>
+    <form method="post" action="{{ url_for('board.reassign') }}" class="panel actions" style="margin-top:6px">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <select name="slot" style="width:auto"><option value="maker">Maker</option><option value="reviewer">Reviewer</option></select>
+      from <select name="from_user" style="width:auto">{% for u in staff %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select>
+      to <select name="to_user" style="width:auto">{% for u in staff %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select>
+      <select name="return_type_id" style="width:auto"><option value="">All returns</option>{% for rt in columns %}<option value="{{ rt.id }}">{{ rt.name }}</option>{% endfor %}</select>
+      <button>Reassign open filings</button>
+    </form>
+  </details>
+  {% endif %}
+</div>
+{% if not clients %}
+<div class="panel muted">
+  {% if not generated %}{{ month_label(key) }} has not been generated yet.{% if current_user.role == 'partner' %} Press <strong>Generate period</strong> to create filings from client registrations.{% endif %}
+  {% else %}No filings match.{% endif %}
+</div>
+{% else %}
+<div style="overflow-x:auto">
+<table class="board">
+  <thead><tr>
+    <th class="client">Client</th>
+    {% for rt in columns %}
+    <th class="col">{{ rt.name }}
+      {% if can_bulk and column_open[rt.id] %}
+      <details class="col-tools"><summary>Bulk…</summary>
+        <form method="post" action="{{ url_for('board.bulk_nil') }}" onsubmit="return confirm('Mark all {{ column_open[rt.id] }} open {{ rt.name }} filings for {{ month_label(key) }} as ' + this.nil_kind.value + '?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="month" value="{{ key }}"><input type="hidden" name="return_type_id" value="{{ rt.id }}">
+          <select name="nil_kind"><option>Nil</option><option>Not applicable</option></select>
+          <button class="secondary">Mark {{ column_open[rt.id] }}</button>
+        </form>
+      </details>
+      {% endif %}
+    </th>
+    {% endfor %}
+  </tr></thead>
+  <tbody>
+  {% for cl in clients %}
+    <tr>
+      <td class="client"><a href="{{ url_for('clients.profile', client_id=cl.id, tab='filings') }}">{{ cl.name }}</a><div class="small muted">{{ cl.code }}{% if cl.primary_staff %} · {{ cl.primary_staff.name }}{% endif %}</div></td>
+      {% for rt in columns %}
+      <td class="cell">{% for f in cells[(cl.id, rt.id)] %}{% include "board/_chip.html" %}{% endfor %}</td>
+      {% endfor %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

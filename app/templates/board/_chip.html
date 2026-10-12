@@ -1,0 +1,9 @@
+{# One filing as a coloured chip. Needs: f, key (board month) #}
+<a class="chip {{ colour(f) }}" href="{{ url_for('board.filing_detail', filing_id=f.id) }}"
+   title="{{ f.client.code }} · {{ f.return_type.name }} · {{ f.period_label }} · {{ STATUSES[f.status] }}{% if f.due_date %} · due {{ f.due_date.strftime('%d-%m-%Y') }}{% endif %}"
+   data-filing="{{ f.id }}" data-colour="{{ colour(f) }}" data-carried="{{ 1 if key and f.gen_month != key else 0 }}">
+  {% if key and f.gen_month != key %}<span class="carry">↻ {{ f.period_label.split(" (")[0] }}</span><br>{% endif %}
+  {{ 'Overdue · ' if is_overdue(f) }}{{ STATUSES[f.status] if f.status != 'nil_na' else (f.nil_kind or 'Nil / NA') }}
+  {% if f.due_date and f.status not in ['filed', 'closed', 'nil_na'] %}<br><span class="small">due {{ f.due_date.strftime('%d %b') }}</span>{% elif f.status in ['filed', 'closed'] and f.filed_on %}<br><span class="small">filed {{ f.filed_on.strftime('%d %b') }}</span>{% elif not f.due_date and f.status not in ['filed', 'closed', 'nil_na'] %}<br><span class="small">{{ f.return_type.event_label or 'date' }} needed</span>{% endif %}
+  {% if f.registration.kind == 'GST' and f.client.gstins|length > 1 %}<br><span class="small">{{ f.registration.identifier[:2] }}…{{ f.registration.identifier[-3:] }}</span>{% endif %}
+</a>

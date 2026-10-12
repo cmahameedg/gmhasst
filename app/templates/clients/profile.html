@@ -36,6 +36,43 @@
   <dl class="fields"><dt>{{ labels['fee_basis'] }}</dt><dd>{{ values.fee_basis or '—' }}</dd></dl>
   <p class="muted small">Invoices and receipts arrive in a later phase.</p>
 </div>
+{% elif tab == 'filings' %}
+{% if current_user.role != 'billing' %}
+<div class="panel">
+  <div class="actions" style="justify-content:space-between"><h2 style="margin:0">Registrations</h2>
+    {% if can_manage_regs %}<a class="button secondary" href="{{ url_for('board.registration_new', client_id=client.id) }}">Add registration</a>{% endif %}</div>
+  <table style="margin-top:10px">
+    <thead><tr><th>Type</th><th>Number</th><th>Scheme</th><th>Active</th><th>Returns</th><th></th></tr></thead>
+    <tbody>
+    {% for r in registrations %}
+      <tr>
+        <td>{{ kinds[r.kind][0] }}</td><td>{{ r.identifier }}</td><td>{{ r.scheme or '—' }}</td>
+        <td class="small">{{ r.active_from.strftime('%d-%m-%Y') if r.active_from else 'Start' }} – {{ r.active_to.strftime('%d-%m-%Y') if r.active_to else 'open' }}</td>
+        <td class="small">{{ r.return_types|map(attribute='name')|join(', ') }}</td>
+        <td>{% if can_manage_regs %}<a href="{{ url_for('board.registration_edit', reg_id=r.id) }}">Edit</a>{% endif %}</td>
+      </tr>
+    {% else %}<tr><td colspan="6" class="muted">No registrations yet. Filings are generated only from registrations.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+<div class="panel">
+  <h2>Filings</h2>
+  <table>
+    <thead><tr><th>Return</th><th>Period</th><th>Due</th><th>Status</th><th>ARN</th></tr></thead>
+    <tbody>
+    {% for f in client_filings %}
+      <tr>
+        <td><a href="{{ url_for('board.filing_detail', filing_id=f.id) }}">{{ f.return_type.name }}</a>{% if current_user.role != 'billing' %} <span class="small muted">{{ f.registration.identifier }}</span>{% endif %}</td>
+        <td>{{ f.period_label }}</td>
+        <td>{{ f.due_date.strftime('%d-%m-%Y') if f.due_date else '—' }}</td>
+        <td><span class="chip {{ colour(f) }}">{{ STATUSES[f.status] }}{% if f.nil_kind %} ({{ f.nil_kind }}){% endif %}</span></td>
+        <td class="small">{{ f.arn or '' }}</td>
+      </tr>
+    {% else %}<tr><td colspan="5" class="muted">No filings generated yet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
 {% else %}
 <div class="panel muted">{{ tab|capitalize }} will be added in a later phase.</div>
 {% endif %}

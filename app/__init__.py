@@ -45,13 +45,15 @@ def create_app(config=None):
     db.init_app(app)
     csrf.init_app(app)
 
-    from . import activity, auth, clients, imports, staff
+    from . import activity, auth, board, clients, imports, returns, staff
 
     app.register_blueprint(auth.bp)
     app.register_blueprint(clients.bp)
     app.register_blueprint(staff.bp)
     app.register_blueprint(imports.bp)
     app.register_blueprint(activity.bp)
+    app.register_blueprint(returns.bp)
+    app.register_blueprint(board.bp)
     app.before_request(auth.load_user)
 
     from . import permissions as perms
@@ -84,6 +86,7 @@ def create_app(config=None):
 
     with app.app_context():
         db.create_all()
+        returns.seed_return_master()
 
     register_cli(app)
     return app

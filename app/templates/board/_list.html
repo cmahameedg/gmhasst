@@ -1,0 +1,16 @@
+{# Table of filings. Needs: rows #}
+<table>
+  <thead><tr><th>Due</th><th>Client</th><th>Return</th><th>Period</th><th>Status</th><th>Maker / reviewer</th></tr></thead>
+  <tbody>
+  {% for f in rows %}
+    <tr>
+      <td class="small" style="{{ 'color:var(--danger);font-weight:600' if is_overdue(f) }}">{{ f.due_date.strftime('%d-%m-%Y') if f.due_date else '—' }}{% if is_overdue(f) %}<br>overdue{% endif %}</td>
+      <td><a href="{{ url_for('clients.profile', client_id=f.client.id, tab='filings') }}">{{ f.client.name }}</a><div class="small muted">{{ f.client.code }}</div></td>
+      <td><a href="{{ url_for('board.filing_detail', filing_id=f.id) }}">{{ f.return_type.name }}</a><div class="small muted">{{ f.registration.identifier }}</div></td>
+      <td class="small">{{ f.period_label }}</td>
+      <td><span class="chip {{ colour(f) }}">{{ STATUSES[f.status] }}</span></td>
+      <td class="small">{{ f.maker.name if f.maker else '—' }}<br><span class="muted">{{ f.reviewer.name if f.reviewer else '—' }}</span></td>
+    </tr>
+  {% else %}<tr><td colspan="6" class="muted">{{ empty }}</td></tr>{% endfor %}
+  </tbody>
+</table>

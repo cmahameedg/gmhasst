@@ -146,8 +146,14 @@ def profile(client_id):
             .where(Client.group_id == client.group_id, Client.id != client.id)
             .order_by(Client.name)
         ).scalars().all()
+    extra = {}
+    if tab == "filings":
+        from .board import client_filings_context
+
+        extra = client_filings_context(user, client)
     return render_template(
         "clients/profile.html",
+        **extra,
         client=client,
         values=snapshot(client),
         fields=ordered(fields - {"fee_basis"}),

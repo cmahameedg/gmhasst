@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Registration · {{ client.name }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('clients.profile', client_id=client.id, tab='filings') }}">← {{ client.code }} · {{ client.name }}</a></p>
+<h1>{{ 'Edit' if reg else 'Add' }} registration</h1>
+<form method="post" class="panel">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="grid">
+    <div class="field"><label for="kind">Type</label><select id="kind" name="kind">
+      {% for k, (label, idl, schemes) in kinds.items() %}<option value="{{ k }}" {{ 'selected' if values.get('kind') == k }}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="identifier">Number</label>
+      {% if client.gstins %}<input id="identifier" type="text" name="identifier" value="{{ values.get('identifier', '') }}" list="gstin-list" placeholder="GSTIN, TAN, PAN, CIN, LLPIN or DIN">
+      <datalist id="gstin-list">{% for g in client.gstins %}<option value="{{ g.gstin }}">{% endfor %}<option value="{{ client.pan }}">{% if client.tan %}<option value="{{ client.tan }}">{% endif %}{% if client.cin_llpin %}<option value="{{ client.cin_llpin }}">{% endif %}</datalist>
+      {% else %}<input id="identifier" type="text" name="identifier" value="{{ values.get('identifier', '') }}">{% endif %}</div>
+    <div class="field" id="scheme-field"><label for="scheme">Scheme / frequency</label><select id="scheme" name="scheme"></select></div>
+    <div class="field"><label for="active_from">Active from (optional)</label><input id="active_from" type="date" name="active_from" value="{{ values.get('active_from', '') }}"></div>
+    <div class="field"><label for="active_to">Active to (set when cancelled or switching scheme)</label><input id="active_to" type="date" name="active_to" value="{{ values.get('active_to', '') }}"></div>
+  </div>
+  <div class="field"><label>Returns to generate</label>
+    <div class="checks" id="returns">
+      {% set chosen = (values.getlist('return_types') if values.getlist is defined else []) %}
+      {% for rt in return_types %}
+        <label data-applies="{{ rt.applies_to }}" data-default="{{ 1 if rt.default_on else 0 }}">
+          <input type="checkbox" name="return_types" value="{{ rt.id }}"
+            {{ 'checked' if (reg and rt in reg.return_types and not chosen) or rt.id|string in chosen }}> {{ rt.name }}{% if not rt.default_on %} <span class="muted small">(optional)</span>{% endif %}</label>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="actions">
+    <button>Save</button>
+    {% if reg %}<button class="link" form="delete-form">Delete</button>{% endif %}
+  </div>
+</form>
+{% if reg %}<form id="delete-form" method="post" action="{{ url_for('board.registration_delete', reg_id=reg.id) }}" onsubmit="return confirm('Delete this registration?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>{% endif %}
+<script>
+(function () {
+  var kinds = {{ kinds|tojson }}, initialScheme = {{ (values.get('scheme') or '')|tojson }};
+  var kind = document.getElementById('kind'), scheme = document.getElementById('scheme'), field = document.getElementById('scheme-field');
+  var isNew = {{ 'false' if reg or values.getlist is defined else 'true' }};
+  function sync(first) {
+    var schemes = kinds[kind.value][2];
+    if (!first) initialScheme = '';
+    scheme.innerHTML = schemes.map(function (s) { return '<option' + (s === initialScheme ? ' selected' : '') + '>' + s + '</option>'; }).join('');
+    field.style.display = schemes.length ? '' : 'none';
+    filter(first);
+  }
+  function filter(first) {
+    var tag = kind.value + (scheme.value && kinds[kind.value][2].length ? ':' + scheme.value : '');
+    document.querySelectorAll('#returns label').forEach(function (label) {
+      var applies = label.dataset.applies.split(','), match = applies.indexOf(tag) >= 0 || applies.indexOf(kind.value) >= 0;
+      label.style.display = match ? '' : 'none';
+      var box = label.querySelector('input');
+      if (!match) box.checked = false;
+      else if (!first || isNew) box.checked = box.checked || (label.dataset.default === '1' && (!first || isNew));
+    });
+  }
+  kind.addEventListener('change', function () { sync(false); });
+  scheme.addEventListener('change', function () {
+    document.querySelectorAll('#returns input').forEach(function (b) { b.checked = false; });
+    filter(false);
+  });
+  sync(true);
+})();
+</script>
+{% endblock %}

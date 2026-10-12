@@ -94,3 +94,70 @@ Staff in the file are matched by the demo users' email addresses.
 
 `tests/test_done_criteria.py` checks the four Phase 1 acceptance criteria.
 `tests/test_access.py` covers 2FA, invites, deactivating leavers, the Billing and Read-only roles, and the validators.
+
+---
+
+# Phase 2: compliance board
+
+Every filing for every client and period shows on one board. Filings are generated from each client's **registrations**.
+
+## How filings are generated
+
+1. **Registrations.** Each client has registrations, managed on the client's Filings tab:
+   - GSTIN with a scheme of Monthly, QRMP or Composition
+   - TAN
+   - Income tax (Non-audit or Audit)
+   - Company (CIN), LLP (LLPIN) or Director (DIN)
+   
+   Each registration links to the returns it files. Optional returns such as IFF, GSTR-9 and MSME-1 are left unticked by default.
+   
+   For an existing practice, a Partner can press **Return master → Set up registrations from client master** once. This creates registrations from each client's GSTINs, TAN and services.
+2. **Generate period.** A Partner picks a month on the board and presses **Generate period**. The app creates one filing per registration for each linked return whose period ends in that month:
+   - monthly returns every month
+   - IFF and PMT-06 in months 1 and 2 of each quarter
+   - quarterly returns in June, September, December and March
+   - half-yearly returns in September and March
+   - annual returns in March (the financial-year end)
+   
+   Generating the same month again creates nothing new. You can also run `flask generate-period 2026-10 --as-email partner@…`.
+3. **Carry-forward.** Anything not finished from an earlier month stays on every later board, marked ↻, and is red once it is past its due date.
+
+## Return Master (only a Partner can edit it)
+
+Due dates live only in the database:
+
+- **Rule:** a due day plus months after the period ends, for example "11th of next month". AGM-based returns (AOC-4, MGT-7, ADT-1) are due a set number of days after the AGM date. Entering the AGM date on one filing updates all of them for that client and year.
+- **Standing exceptions:** for example, TDS for March is due 30 April, and Q4 TDS returns are due 31 May.
+- **One-off extensions:** these apply to a single period, such as GSTR-3B for October 2026 being due on 27 November.
+
+Saving a row recalculates the due date on every **open** filing of that type. Filed, closed and Nil filings keep their original dates.
+
+Every row starts with the dates from the brief. **Check each one against the current notification before go-live.**
+
+Each return has two form-name fields, one under the Income-tax Act, 1961 and one under the Income-tax Act, 2025. Search matches either. The 2025-Act names are blank: fill them in from the notified rules.
+
+## Status flow
+
+The order is: Not started → Data awaited / Data received → In preparation → Ready for review → (Review queries ↺) → Approved → Filed → Closed. Nil / Not applicable is a separate exit.
+
+| Rule | How it is enforced |
+|---|---|
+| Filed only after Approved | The only way into Filed is from Approved. |
+| Filed needs an ARN, a filing date and tax paid (₹) | All three are required on the form. |
+| A late filing needs late fee and interest | Required when the filing date is after the due date. |
+| The checker is not the maker | Whoever sent the filing for review cannot approve it. A Partner is the exception. |
+| Review queries need a comment | The comment is added to the filing's comment thread. |
+| Closing a filing | Needs the acknowledgement saved. ITRs must also be e-verified, and any tax paid needs the challan (CIN/BRN). |
+| Who acts | Maker: the assigned Staff or Article, or a Partner or Manager. Reviewer: the filing's reviewer, or a Partner or Manager. Filing and marking Nil: Staff, Manager or Partner (not an Article). |
+
+Every status change, reassignment, AGM date and Return Master edit is written to the activity log.
+
+## Screens
+
+- **Board:** clients down, returns across.
+  - Cell colours: grey Not started, amber in progress, blue Ready for review, green Filed or Closed, red overdue.
+  - **Bulk…** on a column marks all of that month's open filings in the column Nil or Not applicable.
+  - **Reassign filings…** moves open filings from one person to another.
+- **My work:** your open filings, earliest due first, plus unread @mentions.
+- **Review queue:** filings waiting for your review, and filed returns waiting to be closed.
+- **Filing detail:** status history, comments with `@name` mentions (the part of an email address before the @), the ARN, tax, late fee and interest, and a link to the government portal. No passwords are stored.

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}My work{% endblock %}
+{% block content %}
+<h1>My work</h1>
+{% if mentions %}
+<div class="panel">
+  <h2>Mentions ({{ mentions|length }})</h2>
+  <ul>{% for m in mentions %}<li><a href="{{ url_for('board.filing_detail', filing_id=m.comment.filing.id) }}#comments">{{ m.comment.user.name }} on {{ m.comment.filing.client.name }} · {{ m.comment.filing.return_type.name }} {{ m.comment.filing.period_label }}</a> <span class="small muted">{{ m.comment.at|localtime }}</span><div class="small">{{ m.comment.body|truncate(140) }}</div></li>{% endfor %}</ul>
+</div>
+{% endif %}
+<p class="muted small">Open filings where you are the maker, earliest due first.</p>
+{% with rows=filings, empty="Nothing open. Well done." %}{% include "board/_list.html" %}{% endwith %}
+{% endblock %}
