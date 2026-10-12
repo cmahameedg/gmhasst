@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Notice {{ n.reference_no }}{% endblock %}
+{% block content %}
+{% set late = n.status in awaiting and n.reply_due_date < today() %}
+<p><a href="{{ url_for('notices.index') }}">← Notices</a></p>
+<div class="actions" style="justify-content:space-between;margin-bottom:12px">
+  <div>
+    <div class="muted small"><a href="{{ url_for('clients.profile', client_id=n.client.id, tab='notices') }}">{{ n.client.code }} · {{ n.client.name }}</a></div>
+    <h1 style="margin:0">{{ n.department }} · {{ n.notice_type }} <span class="chip {{ 'green' if n.status in closed else 'red' if late else 'amber' }}" style="font-size:14px">{{ 'Overdue · ' if late }}{{ n.status }}</span></h1>
+    {% if n.description %}<div class="muted">{{ n.description }}</div>{% endif %}
+  </div>
+  {% if can_edit %}<a class="button secondary" href="{{ url_for('notices.edit', notice_id=n.id) }}">Edit</a>{% endif %}
+</div>
+<div class="two-col">
+  <div class="panel">
+    <dl class="fields" style="grid-template-columns:160px 1fr">
+      <dt>Reference</dt><dd>{{ n.reference_no }}</dd>
+      <dt>Notice date</dt><dd>{{ n.notice_date.strftime('%d-%m-%Y') }}</dd>
+      <dt>Period / FY</dt><dd>{{ n.period }}</dd>
+      <dt>Amount demanded</dt><dd>{{ format_inr(n.amount_demanded_paise) or '—' }}</dd>
+      <dt>Reply due</dt><dd style="{{ 'color:var(--danger);font-weight:600' if late }}">{{ n.reply_due_date.strftime('%d-%m-%Y') }}{% if n.status in awaiting %} ({{ days_left(n.reply_due_date) }} day(s)){% endif %}</dd>
+      <dt>Assigned to</dt><dd>{{ n.assigned_to.name }}</dd>
+      <dt>Hearing</dt><dd>{{ n.hearing_date.strftime('%d-%m-%Y') if n.hearing_date else '—' }}</dd>
+      <dt>Replied</dt><dd>{% if n.reply_date %}{{ n.reply_date.strftime('%d-%m-%Y') }} · {{ n.reply_ref }}{% else %}—{% endif %}</dd>
+      <dt>Outcome amount</dt><dd>{{ format_inr(n.outcome_amount_paise) or '—' }}</dd>
+    </dl>
+  </div>
+  <div class="panel">
+    <h2>Change status</h2>
+    {% if can_status %}
+    <form method="post" action="{{ url_for('notices.change_status', notice_id=n.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field"><select name="status" id="status">{% for s in statuses %}<option {{ 'selected' if s == n.status }}>{{ s }}</option>{% endfor %}</select></div>
+      <div class="grid" style="grid-template-columns:1fr 1fr">
+        <div class="field st st-Replied"><label for="reply_date">Reply date</label><input id="reply_date" type="date" name="reply_date" value="{{ n.reply_date.isoformat() if n.reply_date else '' }}"></div>
+        <div class="field st st-Replied"><label for="reply_ref">Reply reference / ARN</label><input id="reply_ref" type="text" name="reply_ref" value="{{ n.reply_ref or '' }}"></div>
+        <div class="field st st-Hearing"><label for="hearing_date">Hearing date</label><input id="hearing_date" type="date" name="hearing_date" value="{{ n.hearing_date.isoformat() if n.hearing_date else '' }}"></div>
+        <div class="field st st-Closed"><label for="outcome_amount">Outcome amount (₹)</label><input id="outcome_amount" type="text" name="outcome_amount" inputmode="decimal" placeholder="0 if dropped"></div>
+      </div>
+      <div class="field"><label for="note">Note</label><input id="note" type="text" name="note"></div>
+      <button>Update status</button>
+    </form>
+    <script>
+    (function () {
+      var sel = document.getElementById('status');
+      function sync() {
+        var v = sel.value;
+        document.querySelectorAll('.st').forEach(function (el) {
+          el.style.display = (el.classList.contains('st-Replied') && v === 'Replied') || (el.classList.contains('st-Hearing') && v === 'Hearing fixed') || (el.classList.contains('st-Closed') && v.indexOf('Closed') === 0) ? '' : 'none';
+        });
+      }
+      sel.addEventListener('change', sync); sync();
+    })();
+    </script>
+    {% else %}<p class="muted">You can view this notice.</p>{% endif %}
+  </div>
+</div>
+<div class="two-col">
+  <div class="panel">
+    <h2>Documents</h2>
+    <table><tbody>
+    {% for d in n.documents %}
+      <tr><td>{{ doc_kinds[d.kind] }}</td><td><a href="{{ url_for('notices.download', notice_id=n.id, doc_id=d.id) }}">{{ d.filename }}</a> <span class="small muted">{{ (d.size / 1024)|round|int }} KB · {{ d.uploaded_by.name if d.uploaded_by else '' }} · {{ d.uploaded_at|localtime }}</span></td>
+        <td>{% if can_edit %}<form method="post" action="{{ url_for('notices.delete_document', notice_id=n.id, doc_id=d.id) }}" onsubmit="return confirm('Delete {{ d.filename }}?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="link">Delete</button></form>{% endif %}</td></tr>
+    {% else %}<tr><td class="muted small">No documents yet.</td></tr>{% endfor %}
+    </tbody></table>
+    {% if can_status %}
+    <form method="post" action="{{ url_for('notices.upload', notice_id=n.id) }}" enctype="multipart/form-data" class="actions" style="margin-top:10px">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <select name="kind" style="width:auto">{% for k, l in doc_kinds.items() %}<option value="{{ k }}">{{ l }} PDF</option>{% endfor %}</select>
+      <input type="file" name="file" accept="application/pdf,.pdf" required>
+      <button class="secondary">Upload</button>
+    </form>
+    {% endif %}
+  </div>
+  <div class="panel">
+    <h2>History</h2>
+    <ul class="timeline">
+    {% for h in n.history|reverse %}
+      <li><span class="small muted">{{ h.at|localtime }}</span> · {{ h.user.name if h.user else 'System' }}<br>
+        {% if h.from_status %}{{ h.from_status }} → {% endif %}<strong>{{ h.to_status }}</strong>{% if h.note %}<div class="small">{{ h.note }}</div>{% endif %}</li>
+    {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

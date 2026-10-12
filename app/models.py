@@ -363,3 +363,125 @@ class FilingMention(db.Model):
     seen = db.Column(db.Boolean, nullable=False, default=False)
 
     user = db.relationship("User")
+
+
+# --- Phase 3: notices, DSC and registration registers ------------------------
+
+class Notice(db.Model):
+    __tablename__ = "notices"
+
+    id = db.Column(db.Integer, primary_key=True)
+    client_id = db.Column(db.Integer, db.ForeignKey("clients.id"), nullable=False, index=True)
+    department = db.Column(db.String(20), nullable=False)
+    notice_type = db.Column(db.String(60), nullable=False)
+    description = db.Column(db.String(300))
+    reference_no = db.Column(db.String(100), nullable=False)
+    notice_date = db.Column(db.Date, nullable=False)
+    period = db.Column(db.String(60), nullable=False)
+    amount_demanded_paise = db.Column(db.Integer)
+    reply_due_date = db.Column(db.Date, nullable=False, index=True)
+    hearing_date = db.Column(db.Date)
+    assigned_to_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    status = db.Column(db.String(30), nullable=False, default="Received", index=True)
+    reply_date = db.Column(db.Date)
+    reply_ref = db.Column(db.String(100))
+    outcome_amount_paise = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=utcnow, onupdate=utcnow)
+
+    client = db.relationship("Client")
+    assigned_to = db.relationship("User")
+    documents = db.relationship("NoticeDocument", backref="notice", cascade="all, delete-orphan",
+                                order_by="NoticeDocument.id")
+    history = db.relationship("NoticeHistory", backref="notice", cascade="all, delete-orphan",
+                              order_by="NoticeHistory.id")
+
+
+class NoticeHistory(db.Model):
+    __tablename__ = "notice_history"
+
+    id = db.Column(db.Integer, primary_key=True)
+    notice_id = db.Column(db.Integer, db.ForeignKey("notices.id"), nullable=False, index=True)
+    at = db.Column(db.DateTime, nullable=False, default=utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    from_status = db.Column(db.String(30))
+    to_status = db.Column(db.String(30), nullable=False)
+    note = db.Column(db.Text)
+
+    user = db.relationship("User")
+
+
+class NoticeDocument(db.Model):
+    """A PDF kept on disk under instance/uploads; only served through a permission check."""
+
+    __tablename__ = "notice_documents"
+
+    id = db.Column(db.Integer, primary_key=True)
+    notice_id = db.Column(db.Integer, db.ForeignKey("notices.id"), nullable=False, index=True)
+    kind = db.Column(db.String(20), nullable=False)  # notice, reply, order, other
+    filename = db.Column(db.String(255), nullable=False)
+    stored_name = db.Column(db.String(80), nullable=False, unique=True)
+    size = db.Column(db.Integer, nullable=False)
+    uploaded_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    uploaded_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+
+    uploaded_by = db.relationship("User")
+
+
+class Dsc(db.Model):
+    __tablename__ = "dscs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    client_id = db.Column(db.Integer, db.ForeignKey("clients.id"), nullable=False, index=True)
+    holder_name = db.Column(db.String(120), nullable=False)
+    dsc_class = db.Column(db.String(20), nullable=False)
+    issuer = db.Column(db.String(60), nullable=False)
+    expiry_date = db.Column(db.Date, nullable=False, index=True)
+    held_by = db.Column(db.String(10), nullable=False)  # Office / Client
+    notes = db.Column(db.String(300))
+    active = db.Column(db.Boolean, nullable=False, default=True)  # False once renewed / surrendered
+
+    client = db.relationship("Client")
+
+
+class RegisterDeadline(db.Model):
+    """Udyam annual update, IEC annual update, GST Rule 10A bank account, and similar."""
+
+    __tablename__ = "register_deadlines"
+
+    id = db.Column(db.Integer, primary_key=True)
+    client_id = db.Column(db.Integer, db.ForeignKey("clients.id"), nullable=False, index=True)
+    kind = db.Column(db.String(20), nullable=False)
+    basis_date = db.Column(db.Date)  # e.g. GST registration grant date for Rule 10A
+    due_date = db.Column(db.Date, nullable=False, index=True)
+    done_on = db.Column(db.Date)
+    reference = db.Column(db.String(100))
+    notes = db.Column(db.String(300))
+
+    client = db.relationship("Client")
+
+
+class CalendarFeed(db.Model):
+    """Private iCal feed. Only a hash of the URL token is stored."""
+
+    __tablename__ = "calendar_feeds"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, unique=True)
+    token_hash = db.Column(db.String(64), nullable=False, unique=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+
+    user = db.relationship("User")
+
+
+class MorningEmailLog(db.Model):
+    """One row per person per day, so a re-run of the job never sends twice."""
+
+    __tablename__ = "morning_email_log"
+    __table_args__ = (UniqueConstraint("user_id", "for_date"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    for_date = db.Column(db.Date, nullable=False)
+    sent_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+    item_count = db.Column(db.Integer, nullable=False, default=0)

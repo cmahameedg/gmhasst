@@ -89,3 +89,19 @@ table.board td.client { position: sticky; left: 0; background: var(--panel); z-i
 .mention { background: #e9f0fd; border-radius: 3px; padding: 0 2px; }
 .two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 16px; }
 @media (max-width: 800px) { .two-col { grid-template-columns: 1fr; } }
+
+/* Phase 3: attention dashboard, calendar */
+header.top { flex-wrap: wrap; height: auto; min-height: 52px; gap: 6px 16px; padding: 8px 20px; }
+.stat { font-size: 26px; font-weight: 700; line-height: 1.1; }
+.attention h2 { display: flex; align-items: center; gap: 8px; }
+.attention .rank { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #17233a; color: #fff; font-size: 13px; }
+.attention.cat-1 .rank, .attention.cat-2 .rank { background: var(--danger); }
+.attention.cat-3 .rank, .attention.cat-4 .rank { background: #b25e09; }
+.attention table td { border-bottom: 1px solid var(--line); }
+table.calendar { table-layout: fixed; }
+table.calendar td { height: 110px; vertical-align: top; padding: 4px; border: 1px solid var(--line); }
+table.calendar td.other-month { background: #f3f4f6; color: var(--muted); }
+table.calendar td.is-today { outline: 2px solid var(--accent); outline-offset: -2px; }
+table.calendar .daynum { font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+table.calendar .chip { display: block; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
+.chip.blue-solid { background: var(--accent); color: #fff; }

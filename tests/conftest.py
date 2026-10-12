@@ -30,6 +30,8 @@ def app(tmp_path):
         "WTF_CSRF_ENABLED": False,
         "SESSION_COOKIE_SECURE": False,
         "SERVER_NAME": "localhost",
+        "MAIL_BACKEND": "memory",
+        "BASE_URL": "https://gmh.example",
     })
     with app.app_context():
         for role, (email, name) in DEMO_USERS.items():
@@ -52,7 +54,7 @@ def login(app, role):
     db.session.commit()
     client.post("/login", data={"email": user.email, "password": PASSWORD})
     resp = client.post("/login/verify", data={"code": pyotp.TOTP(user.totp_secret).now()})
-    assert resp.status_code == 302 and resp.headers["Location"].endswith("/"), resp.data[:300]
+    assert resp.status_code == 302 and resp.headers["Location"].endswith("/today"), resp.data[:300]
     return client
 
 

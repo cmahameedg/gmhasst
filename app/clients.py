@@ -151,6 +151,19 @@ def profile(client_id):
         from .board import client_filings_context
 
         extra = client_filings_context(user, client)
+    elif tab == "notices":
+        from .models import Dsc, RegisterDeadline
+        from .notices import client_notices
+        from .registers import can_edit as can_edit_registers
+
+        extra = {
+            "client_notices": client_notices(user, client),
+            "client_dscs": db.session.execute(db.select(Dsc).where(Dsc.client_id == client.id)
+                                              .order_by(Dsc.active.desc(), Dsc.expiry_date)).scalars().all(),
+            "client_deadlines": db.session.execute(db.select(RegisterDeadline).where(RegisterDeadline.client_id == client.id)
+                                                   .order_by(RegisterDeadline.due_date.desc())).scalars().all(),
+            "can_edit_registers": can_edit_registers(user, client),
+        }
     return render_template(
         "clients/profile.html",
         **extra,

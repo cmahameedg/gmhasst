@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit notice' if notice else 'Record notice' }}{% endblock %}
+{% block content %}
+{% set v = values or {} %}
+{% macro val(key, current) %}{{ v.get(key) if values else current }}{% endmacro %}
+<h1>{{ 'Edit notice ' ~ notice.reference_no if notice else 'Record notice' }}</h1>
+<form method="post" class="panel">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="grid">
+    <div class="field" style="grid-column:1/-1"><label class="req" for="client_id">Client</label>
+      {% if notice %}<div><strong>{{ client.code }} · {{ client.name }}</strong></div>
+      {% else %}<select id="client_id" name="client_id" required><option value="">Choose client</option>
+        {% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if (client and client.id == c.id) or v.get('client_id') == c.id|string }}>{{ c.code }} · {{ c.name }} · {{ c.pan }}</option>{% endfor %}</select>{% endif %}</div>
+    <div class="field"><label class="req" for="department">Department</label><select id="department" name="department">
+      {% for d in departments %}<option {{ 'selected' if val('department', notice.department if notice else 'GST')|trim == d }}>{{ d }}</option>{% endfor %}</select></div>
+    <div class="field"><label class="req" for="notice_type">Notice type</label><select id="notice_type" name="notice_type" data-value="{{ val('notice_type', notice.notice_type if notice else '')|trim }}"></select></div>
+    <div class="field"><label for="description">Description (required for Others)</label><input id="description" type="text" name="description" value="{{ val('description', notice.description if notice and notice.description else '')|trim }}"></div>
+    <div class="field"><label class="req" for="reference_no">Reference number</label><input id="reference_no" type="text" name="reference_no" value="{{ val('reference_no', notice.reference_no if notice else '')|trim }}" required></div>
+    <div class="field"><label class="req" for="notice_date">Notice date</label><input id="notice_date" type="date" name="notice_date" value="{{ val('notice_date', notice.notice_date.isoformat() if notice else '')|trim }}" required></div>
+    <div class="field"><label class="req" for="period">Period / FY</label><input id="period" type="text" name="period" value="{{ val('period', notice.period if notice else '')|trim }}" placeholder="e.g. FY 2023-24 or Apr–Jun 2025" required></div>
+    <div class="field"><label for="amount_demanded">Amount demanded (₹)</label><input id="amount_demanded" type="text" name="amount_demanded" inputmode="decimal" value="{{ val('amount_demanded', (notice.amount_demanded_paise / 100)|round(2) if notice and notice.amount_demanded_paise is not none else '')|trim }}"></div>
+    <div class="field"><label class="req" for="reply_due_date">Reply due date</label><input id="reply_due_date" type="date" name="reply_due_date" value="{{ val('reply_due_date', notice.reply_due_date.isoformat() if notice else '')|trim }}" required></div>
+    <div class="field"><label class="req" for="assigned_to">Assigned to</label><select id="assigned_to" name="assigned_to" required><option value="">Choose</option>
+      {% set current = val('assigned_to', notice.assigned_to_id if notice else (client.primary_staff_id if client else ''))|trim %}
+      {% for u in staff %}<option value="{{ u.id }}" {{ 'selected' if current == u.id|string }}>{{ u.name }}</option>{% endfor %}</select></div>
+  </div>
+  <button>Save</button>
+  <a href="{{ url_for('notices.detail', notice_id=notice.id) if notice else url_for('notices.index') }}">Cancel</a>
+</form>
+<script>
+(function () {
+  var types = {{ types|tojson }}, dept = document.getElementById('department'), type = document.getElementById('notice_type');
+  function sync() {
+    var current = type.value || type.dataset.value;
+    type.innerHTML = types[dept.value].map(function (t) { return '<option' + (t === current ? ' selected' : '') + '>' + t + '</option>'; }).join('');
+  }
+  dept.addEventListener('change', function () { type.dataset.value = ''; type.value = ''; sync(); }); sync();
+})();
+</script>
+{% endblock %}

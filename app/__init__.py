@@ -34,10 +34,20 @@ def create_app(config=None):
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=os.environ.get("SESSION_COOKIE_SECURE", "1") == "1",
         PERMANENT_SESSION_LIFETIME=timedelta(hours=10),
-        MAX_CONTENT_LENGTH=5 * 1024 * 1024,
+        MAX_CONTENT_LENGTH=20 * 1024 * 1024,
         TIMEZONE=os.environ.get("TIMEZONE", "Asia/Kolkata"),
         TOTP_ISSUER=os.environ.get("TOTP_ISSUER", "GMH Practice"),
         WTF_CSRF_TIME_LIMIT=None,
+        BASE_URL=os.environ.get("BASE_URL", "http://localhost:5000"),
+        MAIL_BACKEND=os.environ.get("MAIL_BACKEND", "smtp" if os.environ.get("SMTP_HOST") else "file"),
+        MAIL_FROM=os.environ.get("MAIL_FROM", "GMH Practice <noreply@localhost>"),
+        SMTP_HOST=os.environ.get("SMTP_HOST"),
+        SMTP_PORT=os.environ.get("SMTP_PORT", "587"),
+        SMTP_USER=os.environ.get("SMTP_USER"),
+        SMTP_PASSWORD=os.environ.get("SMTP_PASSWORD"),
+        # Monday=0 ... Sunday=6. Default: Monday to Saturday.
+        WORKING_DAYS=os.environ.get("WORKING_DAYS", "0,1,2,3,4,5"),
+        HOLIDAYS=os.environ.get("HOLIDAYS", ""),  # comma-separated YYYY-MM-DD
     )
     if config:
         app.config.update(config)
@@ -45,7 +55,7 @@ def create_app(config=None):
     db.init_app(app)
     csrf.init_app(app)
 
-    from . import activity, auth, board, clients, imports, returns, staff
+    from . import activity, auth, board, clients, dashboard, imports, notices, registers, returns, staff
 
     app.register_blueprint(auth.bp)
     app.register_blueprint(clients.bp)
@@ -54,6 +64,9 @@ def create_app(config=None):
     app.register_blueprint(activity.bp)
     app.register_blueprint(returns.bp)
     app.register_blueprint(board.bp)
+    app.register_blueprint(notices.bp)
+    app.register_blueprint(registers.bp)
+    app.register_blueprint(dashboard.bp)
     app.before_request(auth.load_user)
 
     from . import permissions as perms
@@ -112,6 +125,26 @@ def register_cli(app):
         db.session.add(user)
         db.session.commit()
         click.echo(f"Partner {email} created. Log in and scan the QR code to enable 2FA.")
+
+    @app.cli.command("send-morning-emails")
+    @click.option("--date", "day", default=None, help="YYYY-MM-DD (default: today in TIMEZONE)")
+    @click.option("--force", is_flag=True, help="Send even on a non-working day or if already sent")
+    @click.option("--dry-run", is_flag=True, help="Show what would be sent")
+    def send_morning_emails(day, force, dry_run):
+        """Run at 8:00 AM IST on working days (see README for the cron line)."""
+        from .morning import is_working_day, send_all
+        from .timeutil import today
+        from .validators import parse_date
+
+        on = parse_date(day) if day else today()
+        if on is None:
+            raise click.ClickException("Date must be YYYY-MM-DD")
+        if not force and not is_working_day(on):
+            click.echo(f"{on} is not a working day; nothing sent.")
+            return
+        with app.test_request_context(base_url=app.config["BASE_URL"]):
+            for user, outcome in send_all(on, force=force, dry_run=dry_run):
+                click.echo(f"{user.email}: {outcome}")
 
     @app.cli.command("seed-demo")
     def seed_demo():

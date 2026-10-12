@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Today{% endblock %}
+{% block content %}
+<div class="actions" style="justify-content:space-between;margin-bottom:12px">
+  <h1 style="margin:0">{{ 'Firm today' if scope == 'firm' else 'Your day' }} <span class="muted small">{{ on.strftime('%A %d %B %Y') }}</span></h1>
+  {% if can_firm %}
+  <nav class="tabs" style="margin:0;border:0">
+    <a href="{{ url_for('dashboard.today_view', view='mine') }}" class="{{ 'active' if scope == 'mine' }}">Mine</a>
+    <a href="{{ url_for('dashboard.today_view', view='firm') }}" class="{{ 'active' if scope == 'firm' }}">Whole firm</a>
+  </nav>
+  {% endif %}
+</div>
+
+{% if team %}
+<div class="panel">
+  <div class="actions" style="gap:24px;margin-bottom:12px">
+    <div><div class="stat">{{ firm.open }}</div><div class="small muted">open items</div></div>
+    <div><div class="stat" style="color:var(--danger)">{{ firm.overdue }}</div><div class="small muted">overdue</div></div>
+    <div><div class="stat">{{ firm.on_time if firm.on_time is not none else '—' }}{% if firm.on_time is not none %}%{% endif %}</div><div class="small muted">filed on time, last {{ window }} days ({{ firm.filed }} filed)</div></div>
+    {% if firm.unassigned %}<div><div class="stat" style="color:var(--danger)">{{ firm.unassigned }}</div><div class="small muted">open filings with no owner</div></div>{% endif %}
+  </div>
+  <table>
+    <thead><tr><th>Staff member</th><th>Open</th><th>Overdue</th><th>On time ({{ window }} days)</th></tr></thead>
+    <tbody>
+    {% for row in team %}
+      <tr data-staff="{{ row.user.id }}">
+        <td>{{ row.user.name }}</td><td>{{ row.open }}</td>
+        <td style="{{ 'color:var(--danger);font-weight:600' if row.overdue }}">{{ row.overdue }}</td>
+        <td>{% if row.on_time is not none %}{{ row.on_time }}% <span class="muted small">of {{ row.filed }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if not groups %}
+<div class="panel"><strong>Nothing needs action.</strong> <span class="muted">No overdue or near-due notices, filings, DSCs or deadlines{{ ' for you' if scope == 'mine' }}.</span></div>
+{% endif %}
+{% for cat, label, items in groups %}
+<div class="panel attention cat-{{ cat }}">
+  <h2><span class="rank">{{ cat }}</span> {{ label }} <span class="muted small">({{ items|length }})</span></h2>
+  <table>
+    <tbody>
+    {% for i in items %}
+      <tr class="item" data-kind="{{ i.kind }}" data-category="{{ cat }}">
+        <td class="small" style="width:110px;{{ 'color:var(--danger);font-weight:600' if i.overdue }}">{{ i.due.strftime('%d %b %Y') if i.due else '' }}{% if i.overdue %}<br>overdue{% elif i.due == on %}<br>today{% endif %}</td>
+        <td><a href="{{ url_for(i.endpoint, **i.args) }}"><strong>{{ i.title }}</strong></a> · <a href="{{ url_for('clients.profile', client_id=i.client.id) }}">{{ i.client.name }}</a>
+          <div class="small muted">{{ i.detail }}</div></td>
+        {% if scope == 'firm' %}<td class="small" style="width:150px">{{ owners[i.owner_id].name if i.owner_id in owners else 'Unassigned' }}</td>{% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endfor %}
+{% endblock %}

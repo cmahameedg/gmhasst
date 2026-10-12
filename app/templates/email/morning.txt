@@ -1,0 +1,17 @@
+{% if firm %}Firm summary for {{ day.strftime('%A %d %B %Y') }}
+
+Open items: {{ firm_totals.open }} · Overdue: {{ firm_totals.overdue }} · Filed on time (last {{ window }} days): {{ firm_totals.on_time if firm_totals.on_time is not none else '—' }}{% if firm_totals.on_time is not none %}%{% endif %}
+
+Team
+{% for row in team %}- {{ row.user.name }}: {{ row.open }} open, {{ row.overdue }} overdue, on time {{ row.on_time if row.on_time is not none else '—' }}{% if row.on_time is not none %}%{% endif %}
+{% endfor %}
+{% else %}Good morning {{ user.name }},
+
+{% if total %}{{ total }} item(s) need your attention today, most urgent first.{% else %}Nothing urgent today: no overdue or near-due notices, filings, DSCs or deadlines.{% endif %}
+{% endif %}
+{% for cat, label, items in groups %}
+{{ cat }}. {{ label }} ({{ items|length }})
+{% for i in items %}   - {{ i.due.strftime('%d %b') if i.due else '' }}{{ ' OVERDUE' if i.overdue }} · {{ i.title }} · {{ i.client.name }} · {{ i.detail }}{% if firm %} · {{ owners.get(i.owner_id, 'Unassigned') }}{% endif %}
+     {{ link(i.endpoint, **i.args) }}
+{% endfor %}{% endfor %}
+Open your dashboard: {{ link('dashboard.today_view') }}

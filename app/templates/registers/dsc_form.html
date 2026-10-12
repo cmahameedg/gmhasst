@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit DSC' if dsc else 'Add DSC' }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('registers.index') }}">← DSC and registrations</a></p>
+<h1>{{ 'Edit DSC' if dsc else 'Add DSC' }}</h1>
+{% if request.args.get('renew') %}<div class="flash" style="background:var(--warn-bg)">Recording the renewed certificate. The old one will be marked inactive.</div>{% endif %}
+<form method="post" class="panel">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="grid">
+    <div class="field"><label class="req" for="client_id">Client</label><select id="client_id" name="client_id"><option value="">Choose</option>
+      {% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if values.get('client_id') == c.id|string }}>{{ c.code }} · {{ c.name }}</option>{% endfor %}</select></div>
+    <div class="field"><label class="req" for="holder_name">Holder name</label><input id="holder_name" type="text" name="holder_name" value="{{ values.get('holder_name', '') }}"></div>
+    <div class="field"><label class="req" for="dsc_class">Class</label><select id="dsc_class" name="dsc_class">
+      {% for c in classes %}<option {{ 'selected' if values.get('dsc_class') == c }}>{{ c }}</option>{% endfor %}</select></div>
+    <div class="field"><label class="req" for="issuer">Issuing authority</label><input id="issuer" type="text" name="issuer" list="issuers" value="{{ values.get('issuer', '') }}">
+      <datalist id="issuers">{% for i in issuers %}<option value="{{ i }}">{% endfor %}</datalist></div>
+    <div class="field"><label class="req" for="expiry_date">Expiry date</label><input id="expiry_date" type="date" name="expiry_date" value="{{ values.get('expiry_date', '') }}"></div>
+    <div class="field"><label class="req" for="held_by">Physically held by</label><select id="held_by" name="held_by">
+      {% for h in held_by %}<option {{ 'selected' if values.get('held_by') == h }}>{{ h }}</option>{% endfor %}</select></div>
+    <div class="field" style="grid-column:1/-1"><label for="notes">Notes</label><input id="notes" type="text" name="notes" value="{{ values.get('notes', '') }}" placeholder="e.g. token kept in drawer 2; director of Bharat Infra"></div>
+  </div>
+  {% if dsc %}<label style="font-weight:400;margin-bottom:12px"><input type="checkbox" name="active" value="1" {{ 'checked' if values.get('active') }}> Current certificate (untick once renewed or surrendered)</label>{% endif %}
+  <button>Save</button>
+</form>
+{% endblock %}

@@ -11,11 +11,15 @@
 <header class="top">
   <a class="brand" href="{{ url_for('clients.index') }}">GMH Practice</a>
   {% set ep = request.endpoint or '' %}
+  <a href="{{ url_for('dashboard.today_view') }}" class="{{ 'active' if ep == 'dashboard.today_view' }}">Today</a>
   <a href="{{ url_for('clients.index') }}" class="{{ 'active' if ep.startswith('clients.') }}">Clients</a>
   <a href="{{ url_for('board.board') }}" class="{{ 'active' if ep in ['board.board', 'board.filing_detail'] }}">Board</a>
   {% if current_user.role in ['partner', 'manager', 'staff', 'article'] %}<a href="{{ url_for('board.my_work') }}" class="{{ 'active' if ep == 'board.my_work' }}">My work</a>
   <a href="{{ url_for('board.review_queue') }}" class="{{ 'active' if ep == 'board.review_queue' }}">Review</a>{% endif %}
-  <a href="{{ url_for('returns.index') }}" class="{{ 'active' if ep.startswith('returns.') }}">Return master</a>
+  <a href="{{ url_for('dashboard.month_view') }}" class="{{ 'active' if ep == 'dashboard.month_view' }}">Calendar</a>
+  {% if current_user.role != 'billing' %}<a href="{{ url_for('notices.index') }}" class="{{ 'active' if ep.startswith('notices.') }}">Notices</a>
+  <a href="{{ url_for('registers.index') }}" class="{{ 'active' if ep.startswith('registers.') }}">DSC</a>{% endif %}
+  <a href="{{ url_for('returns.index') }}" class="{{ 'active' if ep.startswith('returns.') }}">Returns</a>
   {% if perms.can_import(current_user) %}<a href="{{ url_for('imports.upload') }}" class="{{ 'active' if ep.startswith('imports.') }}">Import</a>{% endif %}
   {% if perms.can_manage_staff(current_user) %}<a href="{{ url_for('staff.index') }}" class="{{ 'active' if ep.startswith('staff.') }}">Staff</a>{% endif %}
   {% if perms.can_view_activity(current_user) %}<a href="{{ url_for('activity.index') }}" class="{{ 'active' if ep.startswith('activity.') }}">Activity log</a>{% endif %}

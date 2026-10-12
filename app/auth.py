@@ -31,7 +31,7 @@ LOCKOUT = timedelta(minutes=15)
 INVITE_VALIDITY = timedelta(days=7)
 
 # Endpoints reachable without a fully authenticated session.
-PUBLIC_ENDPOINTS = {"auth.login", "auth.verify", "auth.setup_2fa", "auth.accept_invite", "static"}
+PUBLIC_ENDPOINTS = {"auth.login", "auth.verify", "auth.setup_2fa", "auth.accept_invite", "static", "dashboard.feed"}
 
 
 def hash_token(token):
@@ -90,7 +90,7 @@ def _finish_login(user):
     session.permanent = True
     log_event(user, "auth.login", subject=user, summary="Logged in")
     db.session.commit()
-    return redirect(url_for("clients.index"))
+    return redirect(url_for("dashboard.today_view"))
 
 
 def _check_totp(user, code):
